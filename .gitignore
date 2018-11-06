@@ -58,6 +58,9 @@ project/plugins/project/
 # IntelliJ
 out/
 
+# manual override for IntelliJ: exclude all of .idea folder
+.idea
+
 # mpeltonen/sbt-idea plugin
 .idea_modules/
 
