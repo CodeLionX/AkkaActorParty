@@ -1,7 +1,7 @@
 //#full-example
 package com.github.leananeuber.hasher
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSystem, Props }
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
 
 //#greeter-companion
 //#greeter-messages
@@ -59,35 +59,39 @@ class Printer extends Actor with ActorLogging {
 object AkkaQuickstart extends App {
   import Greeter._
 
+  def runQuickstartExampleOn(system: ActorSystem): Unit = {
+    //#create-actors
+    // Create the printer actor
+    val printer: ActorRef = system.actorOf(Printer.props, "printerActor")
+
+    // Create the 'greeter' actors
+    val howdyGreeter: ActorRef =
+      system.actorOf(Greeter.props("Howdy", printer), "howdyGreeter")
+    val helloGreeter: ActorRef =
+      system.actorOf(Greeter.props("Hello", printer), "helloGreeter")
+    val goodDayGreeter: ActorRef =
+      system.actorOf(Greeter.props("Good day", printer), "goodDayGreeter")
+    //#create-actors
+
+    //#main-send-messages
+    howdyGreeter ! WhoToGreet("Akka")
+    howdyGreeter ! Greet
+
+    howdyGreeter ! WhoToGreet("Lightbend")
+    howdyGreeter ! Greet
+
+    helloGreeter ! WhoToGreet("Scala")
+    helloGreeter ! Greet
+
+    goodDayGreeter ! WhoToGreet("Play")
+    goodDayGreeter ! Greet
+    //#main-send-messages
+  }
+
   // Create the 'helloAkka' actor system
   val system: ActorSystem = ActorSystem("helloAkka")
 
-  //#create-actors
-  // Create the printer actor
-  val printer: ActorRef = system.actorOf(Printer.props, "printerActor")
-
-  // Create the 'greeter' actors
-  val howdyGreeter: ActorRef =
-    system.actorOf(Greeter.props("Howdy", printer), "howdyGreeter")
-  val helloGreeter: ActorRef =
-    system.actorOf(Greeter.props("Hello", printer), "helloGreeter")
-  val goodDayGreeter: ActorRef =
-    system.actorOf(Greeter.props("Good day", printer), "goodDayGreeter")
-  //#create-actors
-
-  //#main-send-messages
-  howdyGreeter ! WhoToGreet("Akka")
-  howdyGreeter ! Greet
-
-  howdyGreeter ! WhoToGreet("Lightbend")
-  howdyGreeter ! Greet
-
-  helloGreeter ! WhoToGreet("Scala")
-  helloGreeter ! Greet
-
-  goodDayGreeter ! WhoToGreet("Play")
-  goodDayGreeter ! Greet
-  //#main-send-messages
+  runQuickstartExampleOn(system)
 }
 //#main-class
 //#full-example
