@@ -30,6 +30,4 @@
 
 - [Download](https://www.jetbrains.com/idea/download/#section=linux) and install Intellij IDEA
 - Install _Scala_ and _SBT_ plugins
-- Import project _as an SBT project_ (only available after installing the _SBT_ plugin), see screenshot below
-  
-  ![Import Project from SBT]
+- Import project _as an SBT project_ (only available after installing the _SBT_ plugin)
