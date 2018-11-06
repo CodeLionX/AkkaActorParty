@@ -32,4 +32,4 @@
 - Install _Scala_ and _SBT_ plugins
 - Import project _as an SBT project_ (only available after installing the _SBT_ plugin), see screenshot below
   
-  ![Import Project from SBT](./doc/images/import_project.png)
+  ![Import Project from SBT]
