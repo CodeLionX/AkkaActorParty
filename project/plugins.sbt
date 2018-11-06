@@ -1,1 +1,4 @@
 addSbtPlugin("io.spray" % "sbt-revolver" % "0.9.1")
+
+// for multi-jvm tests:
+//addSbtPlugin("com.typesafe.sbt" % "sbt-multi-jvm" % "0.4.0")

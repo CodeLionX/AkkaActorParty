@@ -1,5 +1,5 @@
 //#full-example
-package com.github.leananeuber
+package com.github.leananeuber.hasher
 
 import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSystem, Props }
 
