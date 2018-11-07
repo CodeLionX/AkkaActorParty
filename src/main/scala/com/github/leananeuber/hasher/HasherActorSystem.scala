@@ -12,8 +12,8 @@ import scala.language.postfixOps
 object HasherActorSystem {
 
   val actorSystemName = "akka-actor-party"
-  val masterRole = "MASTER"
-  val slaveRole = "SLAVE"
+  val masterRole = "master"
+  val slaveRole = "slave"
 
   def main(args: Array[String]): Unit = {
     val system = actorSystem(actorSystemName, configuration(
