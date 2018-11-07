@@ -9,7 +9,7 @@ lazy val hasher = project
   .in(file("."))
   .settings(
     organization := "com.github.leananeuber",
-    name := "akka-actor-party",
+    name := "hasher",
     version := "0.0.1",
     libraryDependencies ++= Seq(
       "com.typesafe.akka" %% "akka-actor" % akkaVersion,
