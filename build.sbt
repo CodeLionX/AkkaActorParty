@@ -1,13 +1,29 @@
-name := "akka-actor-party"
+//import com.typesafe.sbt.SbtMultiJvm.multiJvmSettings
+//import com.typesafe.sbt.SbtMultiJvm.MultiJvmKeys.MultiJvm
 
-version := "1.0"
+scalaVersion := "2.12.7"
 
-scalaVersion := "2.12.6"
+lazy val akkaVersion = "2.5.17"
 
-lazy val akkaVersion = "2.5.16"
-
-libraryDependencies ++= Seq(
-  "com.typesafe.akka" %% "akka-actor" % akkaVersion,
-  "com.typesafe.akka" %% "akka-testkit" % akkaVersion,
-  "org.scalatest" %% "scalatest" % "3.0.5" % "test"
-)
+lazy val hasher = project
+  .in(file("."))
+  .settings(
+    organization := "com.github.leananeuber",
+    name := "hasher",
+    version := "0.0.1",
+    libraryDependencies ++= Seq(
+      "com.typesafe.akka" %% "akka-actor" % akkaVersion,
+      "com.typesafe.akka" %% "akka-cluster" % akkaVersion,
+      "com.typesafe.akka" %% "akka-cluster-tools" % akkaVersion,
+      // test
+      "com.typesafe.akka" %% "akka-testkit" % akkaVersion,
+      "com.typesafe.akka" %% "akka-multi-node-testkit" % akkaVersion,
+      "org.scalatest" %% "scalatest" % "3.0.5" % "test",
+      // logging
+      "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
+      "ch.qos.logback" % "logback-classic" % "1.2.3"
+    )
+  )
+  // for multi-jvm tests:
+//  .settings(multiJvmSettings: _*)
+//  .configs(MultiJvm)

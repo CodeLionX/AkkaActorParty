@@ -1,5 +1,5 @@
 //#full-example
-package com.github.leananeuber
+package com.github.leananeuber.hasher
 
 import org.scalatest.{ BeforeAndAfterAll, WordSpecLike, Matchers }
 import akka.actor.ActorSystem
