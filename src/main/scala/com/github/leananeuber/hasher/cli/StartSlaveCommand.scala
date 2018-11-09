@@ -1,7 +1,10 @@
 package com.github.leananeuber.hasher.cli
 
+import akka.cluster.Cluster
+import com.github.leananeuber.hasher.HasherActorSystem
 import org.backuity.clist
 
+import scala.language.postfixOps
 
 object StartSlaveCommand extends clist.Command(
   name = "slave",
@@ -24,6 +27,19 @@ object StartSlaveCommand extends clist.Command(
   override def defaultPort: Int = CommonStartCommand.defaultSlavePort
 
   override def run(actorSystemName: String): Unit = {
+    val system = HasherActorSystem.actorSystem(actorSystemName, HasherActorSystem.configuration(
+      actorSystemName,
+      slaveRole,
+      host,
+      port,
+      masterHost,
+      masterPort
+    ))
+    val cluster = Cluster(system)
 
+    // TODO: start processing
+    cluster.registerOnMemberUp{
+      // create actors
+    }
   }
 }
