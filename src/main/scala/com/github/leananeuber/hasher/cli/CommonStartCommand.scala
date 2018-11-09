@@ -11,6 +11,7 @@ object CommonStartCommand {
   val defaultMasterPort = 7877
   val defaultSlavePort = 7879
   val defaultNWorkers = 4
+  val defaultNSlaves = 0
 }
 
 trait CommonStartCommand { this: clist.Command =>
