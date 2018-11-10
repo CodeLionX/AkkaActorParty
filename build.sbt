@@ -22,7 +22,10 @@ lazy val hasher = project
       // logging
       "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
       "ch.qos.logback" % "logback-classic" % "1.2.3"
-    )
+    ),
+    mainClass in assembly := Some("com.github.leananeuber.hasher.HasherActorSystem"),
+    // skip tests during assembly
+    test in assembly := {},
   )
   // for multi-jvm tests:
 //  .settings(multiJvmSettings: _*)
