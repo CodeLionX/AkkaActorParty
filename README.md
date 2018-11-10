@@ -28,6 +28,16 @@ Use the following command to run hasher with sbt:
 You may be asked to chose a main class, if there were multiple main classes detected.
 Select `com.github.leananeuber.hasher.HasherActorSystem` for the hasher application.
 
+The app will print an overview of the different possible parameters. Append parameters of your choice to the run configuration in your IDE or to your command line call.
+For example:
+- Parameters to start a master on a specific port with a number of slaves and an input file: 
+    ```sh
+    > run master --port=<master port> --slaves=4 --input=<path to file>
+    ```
+- Parameters to start a slave that tries to connect to a remote master: 
+    ```sh
+    > run slave --masterhost=<master host> --masterport=<master port> --port=<slave port>
+    ```
 ## Set up development environment (Linux)
 
 ### Use commandline tools
