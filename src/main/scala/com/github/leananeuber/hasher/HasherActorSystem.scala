@@ -11,32 +11,6 @@ import scala.language.postfixOps
 
 object HasherActorSystem {
 
-  val actorSystemName = "akka-actor-party"
-  val masterRole = "master"
-  val slaveRole = "slave"
-
-  def main(args: Array[String]): Unit = {
-    val system = actorSystem(actorSystemName, configuration(
-      actorSystemName,
-      masterRole,
-      "localhost",
-      2551,
-      "localhost",
-      2551
-    ))
-    val cluster = Cluster(system)
-
-    // run example code on status UP
-    cluster.registerOnMemberUp{
-      AkkaQuickstart.runQuickstartExampleOn(system)
-    }
-
-    // leave cluster after 2 seconds
-    system.scheduler.scheduleOnce(2 seconds) {
-      cluster.leave(cluster.selfAddress)
-    }
-  }
-
   def configuration(actorSystemName: String, actorSystemRole: String, host: String, port: Int, masterHost: String, masterPort: Int): Config = {
     ConfigFactory.parseString(
       s"""akka.remote.artery.canonical.hostname = "$host"

@@ -4,6 +4,7 @@
 scalaVersion := "2.12.7"
 
 lazy val akkaVersion = "2.5.17"
+lazy val clistVersion = "3.5.0"
 
 lazy val hasher = project
   .in(file("."))
@@ -12,6 +13,8 @@ lazy val hasher = project
     name := "hasher",
     version := "0.0.1",
     libraryDependencies ++= Seq(
+      "org.backuity.clist" %% "clist-core" % clistVersion,
+      "org.backuity.clist" %% "clist-macros" % clistVersion % "provided",
       "com.typesafe.akka" %% "akka-actor" % akkaVersion,
       "com.typesafe.akka" %% "akka-cluster" % akkaVersion,
       "com.typesafe.akka" %% "akka-cluster-tools" % akkaVersion,
