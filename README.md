@@ -10,34 +10,31 @@ Follow these steps to run the hasher application:
 - Clone this repository, via `git clone https://github.com/LeanaNeuber/AkkaActorParty.git` and checkout the desired version (`master` branch)
 - Build artifact (fat jar)
   ```sh
-  > sbt assembly
+  > sbt clean assembly
   ```
-- Run application with java:
+- Run master node with java:
   ```sh
-  > java -jar target/scala-2.12/hasher-assembly-<version>.jar
+  > java -jar target/scala-2.12/hasher-assembly-<version>.jar master --workers=4 --slaves=0 src/main/resource/students.csv
+  ```
+- Run slaves:
+  ```sh
+  > java -jar target/scala-2.12/hasher-assembly-<version>.jar slave --workers=4 --masterhost=localhost
   ```
 
-An alternative method to running this application via java is starting it directly with sbt.
+An alternative method to running the master node via java is starting it directly with sbt.
 In this case sbt will build it for you automatically.
-Use the following command to run hasher with sbt:
+Use the following command to run the hasher master node with sbt:
 
 ```sh
-> sbt "run"
+> sbt "run master --workers=4 --slaves=0 src/main/resource/students.csv"
 ```
 
 You may be asked to chose a main class, if there were multiple main classes detected.
-Select `com.github.leananeuber.hasher.HasherActorSystem` for the hasher application.
+Select `com.github.leananeuber.hasher.HasherApp` for the hasher application.
 
-The app will print an overview of the different possible parameters. Append parameters of your choice to the run configuration in your IDE or to your command line call.
-For example:
-- Parameters to start a master on a specific port with a number of slaves and an input file: 
-    ```sh
-    > run master --port=<master port> --slaves=4 --input=<path to file>
-    ```
-- Parameters to start a slave that tries to connect to a remote master: 
-    ```sh
-    > run slave --masterhost=<master host> --masterport=<master port> --port=<slave port>
-    ```
+If you run the app without any commands, it will print an overview of the different possible parameters.
+Append parameters of your choice to the run configuration in your IDE or to your command line call.
+
 ## Set up development environment (Linux)
 
 ### Use commandline tools
