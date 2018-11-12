@@ -26,7 +26,7 @@ lazy val hasher = project
       "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
       "ch.qos.logback" % "logback-classic" % "1.2.3"
     ),
-    mainClass in assembly := Some("com.github.leananeuber.hasher.HasherActorSystem"),
+    mainClass in assembly := Some("com.github.leananeuber.hasher.HasherApp"),
     // skip tests during assembly
     test in assembly := {},
   )
