@@ -26,7 +26,7 @@ object PasswordCrackingWorker {
 class PasswordCrackingWorker(master: ActorRef)
   extends Actor with ActorLogging {
 
-  val name: String = this.getClass.getSimpleName
+  val name: String = self.path.name
   val registerWorkerCancellable: Cancellable =
     context.system.scheduler.schedule(0 seconds, 5 seconds, master, RegisterWorker)
 

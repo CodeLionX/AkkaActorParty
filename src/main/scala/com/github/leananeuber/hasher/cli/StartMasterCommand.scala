@@ -3,6 +3,8 @@ package com.github.leananeuber.hasher.cli
 import java.io.File
 
 import akka.cluster.Cluster
+import com.github.leananeuber.hasher.actors.Reaper
+import com.github.leananeuber.hasher.actors.password_cracking.{PasswordCrackingMaster, PasswordCrackingWorker}
 import com.github.leananeuber.hasher.{AkkaQuickstart, HasherActorSystem}
 import org.backuity.clist
 
@@ -47,6 +49,10 @@ object StartMasterCommand extends clist.Command(
     // TODO: start processing
     cluster.registerOnMemberUp{
       // create actors
+      val reaper = system.actorOf(Reaper.props, Reaper.reaperName)
+      val pwMaster = system.actorOf(PasswordCrackingMaster.props, "pw-master")
+      val pwWorker1 = system.actorOf(PasswordCrackingWorker.props(pwMaster), "pw-worker-1")
+      val pwWorker2 = system.actorOf(PasswordCrackingWorker.props(pwMaster), "pw-worker-2")
       // read `input`
       // start processing
     }

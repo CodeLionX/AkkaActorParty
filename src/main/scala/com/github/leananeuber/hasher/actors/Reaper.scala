@@ -30,7 +30,7 @@ class Reaper extends Actor with ActorLogging{
 
   override def preStart(): Unit = {
     super.preStart()
-    log.info("Started {}", this)
+    log.info("Started reaper at {}", self.path)
   }
 
   def receive: Receive = {
@@ -52,7 +52,7 @@ class Reaper extends Actor with ActorLogging{
 
   override def postStop(): Unit = {
     super.postStop()
-    log.info("Stopped {}", this)
+    log.info("Stopped {}", self.path)
   }
 
 }

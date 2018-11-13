@@ -16,7 +16,7 @@ object PasswordCrackingMaster {
 
 class PasswordCrackingMaster extends Actor with ActorLogging {
 
-  val name: String = this.getClass.getSimpleName
+  val name: String = self.path.name
 
   val workers: mutable.Set[ActorRef] = mutable.Set.empty
   val receivedResponses: mutable.Map[ActorRef, Map[Int, Int]] = mutable.Map.empty
