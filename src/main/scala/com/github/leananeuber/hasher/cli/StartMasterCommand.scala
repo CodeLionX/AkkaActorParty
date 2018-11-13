@@ -2,6 +2,7 @@ package com.github.leananeuber.hasher.cli
 
 import java.io.File
 
+import akka.actor.PoisonPill
 import akka.cluster.Cluster
 import com.github.leananeuber.hasher.actors.Reaper
 import com.github.leananeuber.hasher.actors.password_cracking.{PasswordCrackingMaster, PasswordCrackingWorker}
@@ -55,18 +56,9 @@ object StartMasterCommand extends clist.Command(
       val pwWorker2 = system.actorOf(PasswordCrackingWorker.props(pwMaster), "pw-worker-2")
       // read `input`
       // start processing
-    }
 
-    // TODO: remove
-    //------------------------------------------------
-    // run example code on status UP
-    cluster.registerOnMemberUp{
-      AkkaQuickstart.runQuickstartExampleOn(system)
+      // try application-defined shutdown after 5 seconds
+      system.scheduler.scheduleOnce(5 seconds, pwMaster, PoisonPill)
     }
-    // leave cluster after 2 seconds
-    system.scheduler.scheduleOnce(2 seconds) {
-      cluster.leave(cluster.selfAddress)
-    }
-    //------------------------------------------------
   }
 }

@@ -1,6 +1,6 @@
 package com.github.leananeuber.hasher.actors.password_cracking
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, Terminated}
 import com.github.leananeuber.hasher.MasterWorkerProtocol.{RegisterWorker, RegisterWorkerAck}
 import com.github.leananeuber.hasher.actors.Reaper
 
@@ -27,8 +27,10 @@ class PasswordCrackingMaster extends Actor with ActorLogging {
     Reaper.watchWithDefault(self)
   }
 
-  override def postStop(): Unit =
-    log.info(s"Stopping $name")
+  override def postStop(): Unit = {
+    log.info(s"Stopping $name and all associated workers")
+    workers.foreach(_ ! PoisonPill)
+  }
 
   override def receive: Receive = {
     case RegisterWorker =>
