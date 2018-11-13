@@ -12,13 +12,16 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
+
 object PasswordCrackingWorker {
 
   def props(searchStart: Int, searchStop: Int, master: ActorRef): Props =
     Props(new PasswordCrackingWorker(searchStart, searchStop, master))
 
   object CrackingFailedException extends RuntimeException
+
 }
+
 
 class PasswordCrackingWorker(searchStart: Int, searchStop: Int, master: ActorRef)
   extends Actor with ActorLogging {
@@ -38,6 +41,7 @@ class PasswordCrackingWorker(searchStart: Int, searchStop: Int, master: ActorRef
   override def receive: Receive = {
     case RegisterWorkerAck =>
       registerWorkerCancellable.cancel()
+      log.info(s"$name: successfully registered at master actor")
 
     case CrackPasswordsCommand(secrets) =>
       sender() ! PasswordsCrackedEvent(decrypt(secrets))
