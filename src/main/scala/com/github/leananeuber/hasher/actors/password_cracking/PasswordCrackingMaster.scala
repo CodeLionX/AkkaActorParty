@@ -3,6 +3,7 @@ package com.github.leananeuber.hasher.actors.password_cracking
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, Terminated}
 import com.github.leananeuber.hasher.MasterWorkerProtocol.{RegisterWorker, RegisterWorkerAck}
 import com.github.leananeuber.hasher.actors.Reaper
+import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol.{CrackPasswordsCommand, PasswordsCrackedEvent}
 
 import scala.collection.mutable
 
@@ -42,6 +43,10 @@ class PasswordCrackingMaster extends Actor with ActorLogging {
     case CrackPasswordsCommand(secrets) =>
       receiverActor = sender
       val workPackages = splitWork(secrets)
+      log.info(
+        s"""$name: received command message
+           |  available workers: ${workers.size}
+           |  work packages:     ${workPackages.size}""".stripMargin)
       distributeWork(workPackages)
 
     case PasswordsCrackedEvent(passwords) =>
@@ -51,9 +56,9 @@ class PasswordCrackingMaster extends Actor with ActorLogging {
         receiverActor ! PasswordsCrackedEvent(combinedPasswordMap)
       }
 
-    case Terminated =>
-      workers.remove(sender)
-      log.warning(s"$name: worker $sender terminated - was it on purpose?")
+    case Terminated(actorRef) =>
+      workers.remove(actorRef)
+      log.warning(s"$name: worker $actorRef terminated - was it on purpose?")
 
     // catch-all case: just log
     case m =>
@@ -61,15 +66,16 @@ class PasswordCrackingMaster extends Actor with ActorLogging {
   }
 
   def splitWork(secrets: Map[Int, String]): Seq[Map[Int, String]] = {
-    val rangeSize = (secrets.size / (workers.size - 1)) + 1
-    (0 to workers.size).map( workerNumber =>
-      secrets.slice(0 * workerNumber, rangeSize * (workerNumber + 1))
+    val divisor = if(workers.size <= 1) 1 else workers.size - 1
+    val rangeSize = (secrets.size / divisor) + 1
+    (0 until workers.size).map( workerNumber =>
+      secrets.slice(rangeSize * workerNumber, rangeSize * (workerNumber + 1))
     )
   }
 
   def distributeWork(workPackages: Seq[Map[Int, String]]): Unit = {
     workers.zipWithIndex.foreach{ case (ref, index) =>
-      ref ! workPackages(index)
+      ref ! CrackPasswordsCommand(workPackages(index))
     }
   }
 }
