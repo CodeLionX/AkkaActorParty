@@ -15,15 +15,15 @@ import scala.language.postfixOps
 
 object PasswordCrackingWorker {
 
-  def props(searchStart: Int, searchStop: Int, master: ActorRef): Props =
-    Props(new PasswordCrackingWorker(searchStart, searchStop, master))
+  def props(master: ActorRef): Props =
+    Props(new PasswordCrackingWorker(master))
 
   object CrackingFailedException extends RuntimeException
 
 }
 
 
-class PasswordCrackingWorker(searchStart: Int, searchStop: Int, master: ActorRef)
+class PasswordCrackingWorker(master: ActorRef)
   extends Actor with ActorLogging {
 
   val name: String = this.getClass.getSimpleName
@@ -55,7 +55,7 @@ class PasswordCrackingWorker(searchStart: Int, searchStop: Int, master: ActorRef
     idHashTuple._1 -> realValue
   })
 
-  private def unhash(hexHash: String): Option[Int] = (searchStart to searchStop)
+  private def unhash(hexHash: String): Option[Int] = (0 to hexHash.length)
     .map ( i => i -> hash(i) )
     .find{ case (_, h) => h.equals(hexHash) }
     .map ( indexHashTuple => indexHashTuple._1 )
