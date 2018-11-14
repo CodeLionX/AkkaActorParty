@@ -24,7 +24,9 @@ lazy val hasher = project
       "org.scalatest" %% "scalatest" % "3.0.5" % "test",
       // logging
       "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
-      "ch.qos.logback" % "logback-classic" % "1.2.3"
+      "ch.qos.logback" % "logback-classic" % "1.2.3",
+      // csv parsing
+      "com.univocity" % "univocity-parsers" % "2.7.6",
     ),
     mainClass in assembly := Some("com.github.leananeuber.hasher.HasherApp"),
     // skip tests during assembly
