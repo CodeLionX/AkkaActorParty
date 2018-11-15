@@ -2,7 +2,7 @@ package com.github.leananeuber.hasher.actors
 
 import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, OneForOneStrategy, Props, SupervisorStrategy}
-import com.github.leananeuber.hasher.SessionSetupProtocol.{RegisterAtSession, RegisteredAtSessionAck, SetupSessionConnectionTo}
+import com.github.leananeuber.hasher.protocols.SessionSetupProtocol.{RegisterAtSession, RegisteredAtSessionAck, SetupSessionConnectionTo}
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingWorker
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingWorker.CrackingFailedException
 

@@ -1,7 +1,7 @@
 package com.github.leananeuber.hasher.actors
 
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
-import com.github.leananeuber.hasher.SessionSetupProtocol.{RegisterAtSession, RegisteredAtSessionAck}
+import com.github.leananeuber.hasher.protocols.SessionSetupProtocol.{RegisterAtSession, RegisteredAtSessionAck}
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingMaster
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol.{CrackPasswordsCommand, PasswordsCrackedEvent}
 

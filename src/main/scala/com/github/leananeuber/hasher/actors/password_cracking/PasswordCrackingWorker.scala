@@ -4,8 +4,8 @@ import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 
 import akka.actor.{Actor, ActorLogging, Cancellable, Props}
-import com.github.leananeuber.hasher.MasterWorkerProtocol.{RegisterWorker, RegisterWorkerAck}
-import com.github.leananeuber.hasher.SessionSetupProtocol.SetupSessionConnectionTo
+import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.{RegisterWorker, RegisterWorkerAck}
+import com.github.leananeuber.hasher.protocols.SessionSetupProtocol.SetupSessionConnectionTo
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol.{CrackPasswordsCommand, PasswordsCrackedEvent}
 import com.github.leananeuber.hasher.actors.{Reaper, Session}
 

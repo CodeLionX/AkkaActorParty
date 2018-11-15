@@ -3,7 +3,7 @@ package com.github.leananeuber.hasher.cli
 import akka.actor.Address
 import akka.cluster.Cluster
 import com.github.leananeuber.hasher.HasherActorSystem
-import com.github.leananeuber.hasher.SessionSetupProtocol.SetupSessionConnectionTo
+import com.github.leananeuber.hasher.protocols.SessionSetupProtocol.SetupSessionConnectionTo
 import com.github.leananeuber.hasher.actors.{Reaper, WorkerManager}
 import org.backuity.clist
 

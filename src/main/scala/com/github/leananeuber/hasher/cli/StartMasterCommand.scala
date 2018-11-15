@@ -7,7 +7,7 @@ import akka.cluster.Cluster
 import akka.pattern.ask
 import akka.util.Timeout
 import com.github.leananeuber.hasher.HasherActorSystem
-import com.github.leananeuber.hasher.SessionSetupProtocol.SetupSessionConnectionTo
+import com.github.leananeuber.hasher.protocols.SessionSetupProtocol.SetupSessionConnectionTo
 import com.github.leananeuber.hasher.actors.{Reaper, Session, WorkerManager}
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol.{CrackPasswordsCommand, PasswordsCrackedEvent}
 import com.github.leananeuber.hasher.actors.password_cracking.{PasswordCrackingMaster, PasswordCrackingWorker}
