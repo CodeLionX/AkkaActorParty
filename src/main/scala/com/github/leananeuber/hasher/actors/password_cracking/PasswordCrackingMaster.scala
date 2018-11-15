@@ -6,16 +6,21 @@ import com.github.leananeuber.hasher.actors.Reaper
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol.{CrackPasswordsCommand, PasswordsCrackedEvent}
 
 import scala.collection.mutable
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
 
 object PasswordCrackingMaster {
 
-  def props: Props = Props[PasswordCrackingMaster]
+  val name = "pc-master"
+
+  def props(nWorkers: Int): Props = Props(new PasswordCrackingMaster(nWorkers))
 
 }
 
 
-class PasswordCrackingMaster extends Actor with ActorLogging {
+class PasswordCrackingMaster(nWorkers: Int) extends Actor with ActorLogging {
 
   val name: String = self.path.name
 
@@ -41,13 +46,19 @@ class PasswordCrackingMaster extends Actor with ActorLogging {
       log.info(s"$name: worker $sender registered")
 
     case CrackPasswordsCommand(secrets) =>
-      receiverActor = sender
-      val workPackages = splitWork(secrets)
-      log.info(
-        s"""$name: received command message
-           |  available workers: ${workers.size}
-           |  work packages:     ${workPackages.size}""".stripMargin)
-      distributeWork(workPackages)
+      if(workers.size < nWorkers) {
+        // delay processing of message until all workers are ready
+        context.system.scheduler.scheduleOnce(1 second, self, CrackPasswordsCommand(secrets))
+
+      } else {
+        receiverActor = sender
+        val workPackages = splitWork(secrets)
+        log.info(
+          s"""$name: received command message
+             |  available workers: ${workers.size}
+             |  work packages:     ${workPackages.size}""".stripMargin)
+        distributeWork(workPackages)
+      }
 
     case PasswordsCrackedEvent(passwords) =>
       receivedResponses(sender) = passwords

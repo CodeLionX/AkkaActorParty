@@ -3,10 +3,11 @@ package com.github.leananeuber.hasher.actors.password_cracking
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props}
+import akka.actor.{Actor, ActorLogging, Cancellable, Props}
 import com.github.leananeuber.hasher.MasterWorkerProtocol.{RegisterWorker, RegisterWorkerAck}
-import com.github.leananeuber.hasher.actors.Reaper
+import com.github.leananeuber.hasher.SessionSetupProtocol.SetupSessionConnectionTo
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol.{CrackPasswordsCommand, PasswordsCrackedEvent}
+import com.github.leananeuber.hasher.actors.{Reaper, Session}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -17,20 +18,18 @@ object PasswordCrackingWorker {
 
   val passwordRange: Range = 0 to 1000000
 
-  def props(master: ActorRef): Props =
-    Props(new PasswordCrackingWorker(master))
+  def props: Props = Props[PasswordCrackingWorker]
 
   case class CrackingFailedException(m: String) extends RuntimeException(m)
 
 }
 
 
-class PasswordCrackingWorker(master: ActorRef) extends Actor with ActorLogging {
+class PasswordCrackingWorker extends Actor with ActorLogging {
   import PasswordCrackingWorker._
 
   val name: String = self.path.name
-  val registerWorkerCancellable: Cancellable =
-    context.system.scheduler.schedule(0 seconds, 5 seconds, master, RegisterWorker)
+  var registerWorkerCancellable: Cancellable = _
 
   override def preStart(): Unit = {
     log.info(s"Starting $name")
@@ -41,6 +40,12 @@ class PasswordCrackingWorker(master: ActorRef) extends Actor with ActorLogging {
     log.info(s"Stopping $name")
 
   override def receive: Receive = {
+    case SetupSessionConnectionTo(address) =>
+      val masterSelection = context.actorSelection(s"$address/user/${Session.sessionName}/${PasswordCrackingMaster.name}")
+      registerWorkerCancellable = context.system.scheduler.schedule(Duration.Zero, 5 seconds){
+        masterSelection ! RegisterWorker
+      }
+
     case RegisterWorkerAck =>
       registerWorkerCancellable.cancel()
       log.info(s"$name: successfully registered at master actor")

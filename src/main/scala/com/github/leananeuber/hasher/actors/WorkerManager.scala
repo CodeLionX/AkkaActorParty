@@ -2,7 +2,6 @@ package com.github.leananeuber.hasher.actors
 
 import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, OneForOneStrategy, Props, SupervisorStrategy}
-import akka.io.SelectionHandler.Retry
 import com.github.leananeuber.hasher.SessionSetupProtocol.{RegisterAtSession, RegisteredAtSessionAck, SetupSessionConnectionTo}
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingWorker
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingWorker.CrackingFailedException
@@ -45,18 +44,22 @@ class WorkerManager(nWorkers: Int) extends Actor with ActorLogging {
 
   def setup: Receive = {
     case SetupSessionConnectionTo(address) =>
-      val sessionSelection = context.actorSelection(s"$address/user/${Session.sessionName}")
-      val registerCancellable = context.system.scheduler.schedule(Duration.Zero, 5 seconds) { () =>
+      val sessionSelection = context.system.actorSelection(s"$address/user/${Session.sessionName}")
+      val registerCancellable = context.system.scheduler.schedule(Duration.Zero, 5 seconds) {
         sessionSelection ! RegisterAtSession(nWorkers)
       }
+      context.children.foreach(_ ! SetupSessionConnectionTo(address))
       context.become(waitingForSetupAck(registerCancellable))
   }
 
   def waitingForSetupAck(registerCancellable: Cancellable): Receive = {
     case RegisteredAtSessionAck =>
+      log.info(s"Successfully registered at master node: $sender")
       registerCancellable.cancel()
       context.become(ready(sender))
   }
 
-  def ready(sessionActor: ActorRef): Receive = ???
+  def ready(sessionActor: ActorRef): Receive = {
+    case m => log.info(s"$workerManagerName received a message: $m")
+  }
 }
