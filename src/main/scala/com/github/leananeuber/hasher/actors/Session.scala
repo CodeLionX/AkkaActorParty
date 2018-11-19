@@ -5,7 +5,7 @@ import java.io.File
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
 import com.github.leananeuber.hasher.protocols.SessionSetupProtocol.{RegisterAtSession, RegisteredAtSessionAck}
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingMaster
-import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol.{CrackPasswordsCommand, PasswordsCrackedEvent}
+import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol.{CrackPasswordsCommand, PasswordsCrackedEvent, StartCrackingCommand}
 import com.github.leananeuber.hasher.parsing.{StudentRecord, StudentsCSVParser}
 
 
@@ -50,7 +50,7 @@ class Session(nSlaves: Int, inputFile: File) extends Actor with ActorLogging {
         }
 
         // start processing
-        pcMaster ! CrackPasswordsCommand(pws)
+        pcMaster ! StartCrackingCommand(pws)
         context.become(running(newSlaveRegistry, pcMaster))
       }
   }
