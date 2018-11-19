@@ -1,21 +1,19 @@
 package com.github.leananeuber.hasher.protocols
 
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSelection, Address, Cancellable, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, Address, Cancellable, Terminated}
 import com.github.leananeuber.hasher.actors.Session
-import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingMaster
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import scala.reflect.ClassTag
 
 object MasterWorkerProtocol {
 
   case object RegisterWorker extends SerializableMessage
   case object RegisterWorkerAck extends SerializableMessage
 
-  case class SetupConnectionTo(masterSelection: ActorSelection) extends SerializableMessage
+  case class SetupConnectionTo(address: Address) extends SerializableMessage
 
 
   trait MasterHandling { this: Actor with ActorLogging =>
@@ -49,8 +47,9 @@ object MasterWorkerProtocol {
 
     var registerWorkerCancellable: Cancellable = _
 
-    def handleMasterCommunication: Receive = {
-      case SetupConnectionTo(masterSelection) =>
+    def handleMasterCommunicationTo(masterActorName: String): Receive = {
+      case SetupConnectionTo(address) =>
+        val masterSelection = context.actorSelection(s"$address/user/${Session.sessionName}/$masterActorName")
         registerWorkerCancellable = context.system.scheduler.schedule(Duration.Zero, 5 seconds){
           masterSelection ! RegisterWorker
         }

@@ -2,6 +2,7 @@ package com.github.leananeuber.hasher.actors
 
 import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, OneForOneStrategy, Props, SupervisorStrategy}
+import com.github.leananeuber.hasher.actors.gene_partners.{MatchGenePartnerMaster, MatchGenePartnerWorker}
 import com.github.leananeuber.hasher.actors.password_cracking.{PasswordCrackingMaster, PasswordCrackingWorker}
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingWorker.CrackingFailedException
 import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.SetupConnectionTo
@@ -28,6 +29,11 @@ class WorkerManager(nWorkers: Int) extends Actor with ActorLogging {
     context.watch(worker)
     worker
   }
+  val mgp_worker: Seq[ActorRef] = (0 until nWorkers).map{ id =>
+    val worker = context.actorOf(MatchGenePartnerWorker.props, s"mgp-worker-$id")
+    context.watch(worker)
+    worker
+  }
 
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy(3, 10 seconds){
     case _: CrackingFailedException => Restart
@@ -50,9 +56,7 @@ class WorkerManager(nWorkers: Int) extends Actor with ActorLogging {
         sessionSelection ! RegisterAtSession(nWorkers)
       }
 
-      // for password cracking children (currently there are no other ones)
-      val masterSelection = context.actorSelection(s"$address/user/${Session.sessionName}/${PasswordCrackingMaster.name}")
-      context.children.foreach(_ ! SetupConnectionTo(masterSelection))
+      context.children.foreach(_ ! SetupConnectionTo(address))
       context.become(waitingForSetupAck(registerCancellable))
   }
 

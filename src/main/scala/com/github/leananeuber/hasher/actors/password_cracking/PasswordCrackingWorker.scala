@@ -30,7 +30,7 @@ class PasswordCrackingWorker extends Actor with ActorLogging with WorkerHandling
   override def postStop(): Unit =
     log.info(s"Stopping $name")
 
-  override def receive: Receive = super.handleMasterCommunication orElse {
+  override def receive: Receive = super.handleMasterCommunicationTo(PasswordCrackingMaster.name) orElse {
 
     case CrackPasswordsCommand(secrets, range) =>
       log.info(s"$name: checking passwords in range $range")

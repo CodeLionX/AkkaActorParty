@@ -1,11 +1,12 @@
 package com.github.leananeuber.hasher.actors.gene_partners
 
-import akka.actor.{Actor, ActorLogging, PoisonPill, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
 import com.github.leananeuber.hasher.actors.Reaper
 import com.github.leananeuber.hasher.actors.gene_partners.MatchGenePartnerMaster.StartMatching
-import com.github.leananeuber.hasher.actors.gene_partners.MatchGenePartnerWorker.CalculateLCSLengths
+import com.github.leananeuber.hasher.actors.gene_partners.MatchGenePartnerWorker.{CalculateLCSLengths, LCSLengthsCalculated}
 import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.MasterHandling
 
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -13,18 +14,20 @@ import scala.language.postfixOps
 
 object MatchGenePartnerMaster {
 
-  val name = "gp-master"
+  val name = "mgp-master"
 
-  def props(nWorkers: Int): Props = Props(new MatchGenePartnerMaster(nWorkers: Int))
+  def props(nWorkers: Int, session: ActorRef): Props = Props(new MatchGenePartnerMaster(nWorkers, session))
 
   case class StartMatching(genes: Map[Int, String])
 
 }
 
 
-class MatchGenePartnerMaster(nWorkers: Int) extends Actor with ActorLogging with MasterHandling {
+class MatchGenePartnerMaster(nWorkers: Int, session: ActorRef) extends Actor with ActorLogging with MasterHandling {
 
   val name: String = self.path.name
+
+  val receivedResponses: mutable.Map[ActorRef, Map[(Int, Int), Int]] = mutable.Map.empty
 
   override def preStart(): Unit = {
     log.info(s"Starting $name")
@@ -52,6 +55,15 @@ class MatchGenePartnerMaster(nWorkers: Int) extends Actor with ActorLogging with
         workers.zip(ranges).foreach { case (ref, indexRange) =>
           ref ! CalculateLCSLengths(genes, indexRange)
         }
+      }
+
+    case LCSLengthsCalculated(lengths) =>
+      log.info(s"$name: received ${lengths.size} lenghts from $sender")
+      receivedResponses(sender) = lengths
+      if(receivedResponses.size == workers.size) {
+        val combinedLengthTable = receivedResponses.values.reduce( _ ++ _)
+        log.info(s"The whole table:\n$combinedLengthTable")
+        session ! "FINISHED!"
       }
   }
 }

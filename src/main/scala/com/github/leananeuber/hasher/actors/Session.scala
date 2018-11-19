@@ -3,6 +3,8 @@ package com.github.leananeuber.hasher.actors
 import java.io.File
 
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
+import com.github.leananeuber.hasher.actors.gene_partners.MatchGenePartnerMaster
+import com.github.leananeuber.hasher.actors.gene_partners.MatchGenePartnerMaster.StartMatching
 import com.github.leananeuber.hasher.protocols.SessionSetupProtocol.{RegisterAtSession, RegisteredAtSessionAck}
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingMaster
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol.{CrackPasswordsCommand, PasswordsCrackedEvent, StartCrackingCommand}
@@ -43,23 +45,39 @@ class Session(nSlaves: Int, inputFile: File) extends Actor with ActorLogging {
         val overallWorkers = newSlaveRegistry.values.sum
         log.debug(s"Starting pc-master with $overallWorkers workers")
         val pcMaster = context.actorOf(PasswordCrackingMaster.props(overallWorkers, self), PasswordCrackingMaster.name)
+        val mgpMaster = context.actorOf(MatchGenePartnerMaster.props(overallWorkers, self), MatchGenePartnerMaster.name)
 
         // read `input`
         val pws: Map[Int, String] = records.map{ case (id, record) =>
           id -> record.passwordHash
         }
+        val genes: Map[Int, String] = records.map{ case (id, record) =>
+          id -> record.geneSeq
+        }
 
         // start processing
         pcMaster ! StartCrackingCommand(pws)
-        context.become(running(newSlaveRegistry, pcMaster))
+        mgpMaster ! StartMatching(genes)
+        context.become(runningPasswordCracking(newSlaveRegistry, pcMaster, mgpMaster))
       }
   }
 
-  def running(slaveRegistry: Map[ActorRef, Int], pcMaster: ActorRef): Receive = {
+  def runningPasswordCracking(slaveRegistry: Map[ActorRef, Int], pcMaster: ActorRef, mgpMaster: ActorRef): Receive = {
 
     case PasswordsCrackedEvent(cleartexts) =>
       println(cleartexts)
+//      pcMaster ! PoisonPill
+//      slaveRegistry.keys.foreach(_ ! PoisonPill)
+//      context.stop(self)
+      context.become(runningGeneMatching(slaveRegistry, pcMaster, mgpMaster))
+  }
+
+  def runningGeneMatching(slaveRegistry: Map[ActorRef, Int], pcMaster: ActorRef, mgpMaster: ActorRef): Receive = {
+
+    case m =>
+      println(m)
       pcMaster ! PoisonPill
+      mgpMaster ! PoisonPill
       slaveRegistry.keys.foreach(_ ! PoisonPill)
       context.stop(self)
   }
