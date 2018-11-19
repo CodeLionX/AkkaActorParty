@@ -1,9 +1,9 @@
 package com.github.leananeuber.hasher.actors.password_cracking
 
-import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, Terminated}
-import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.{RegisterWorker, RegisterWorkerAck}
+import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
 import com.github.leananeuber.hasher.actors.Reaper
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol.{CrackPasswordsCommand, PasswordsCrackedEvent, StartCrackingCommand}
+import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.MasterHandling
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -22,12 +22,10 @@ object PasswordCrackingMaster {
 }
 
 
-class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor with ActorLogging {
+class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor with ActorLogging with MasterHandling {
   import PasswordCrackingMaster._
 
   val name: String = self.path.name
-
-  val workers: mutable.Set[ActorRef] = mutable.Set.empty
   val receivedResponses: mutable.Map[ActorRef, Map[Int, Int]] = mutable.Map.empty
 
   override def preStart(): Unit = {
@@ -40,13 +38,7 @@ class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor wit
     workers.foreach(_ ! PoisonPill)
   }
 
-  override def receive: Receive = {
-    case RegisterWorker =>
-      workers.add(sender)
-      context.watch(sender)
-      sender ! RegisterWorkerAck
-      log.info(s"$name: worker $sender registered")
-
+  override def receive: Receive = super.handleWorkerRegistrations orElse {
     case StartCrackingCommand(secrets) =>
       if(workers.size < nWorkers) {
         // delay processing of message until all workers are ready
@@ -67,11 +59,7 @@ class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor wit
       if(receivedResponses.size == workers.size) {
         val combinedPasswordMap = receivedResponses.values.reduce( _ ++ _)
         session ! PasswordsCrackedEvent(combinedPasswordMap)
-  }
-
-    case Terminated(actorRef) =>
-      workers.remove(actorRef)
-      log.warning(s"$name: worker $actorRef terminated - was it on purpose?")
+      }
 
     // catch-all case: just log
     case m =>
@@ -79,7 +67,6 @@ class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor wit
   }
 
   def splitRange(): Seq[Range] = {
-
     val remainder = passwordRange.end % nWorkers != 0
     val partitionSize = (if(remainder) 1 else 0) + (passwordRange.end / nWorkers)
 

@@ -2,6 +2,7 @@ package com.github.leananeuber.hasher.actors.gene_partners
 
 import akka.actor.{Actor, ActorLogging, Props}
 import com.github.leananeuber.hasher.actors.Reaper
+import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.WorkerHandling
 
 import scala.annotation.tailrec
 
@@ -17,7 +18,7 @@ object MatchGenePartnerWorker {
 }
 
 
-class MatchGenePartnerWorker extends Actor with ActorLogging {
+class MatchGenePartnerWorker extends Actor with ActorLogging with WorkerHandling {
   import MatchGenePartnerWorker._
 
   val name: String = self.path.name
@@ -30,7 +31,7 @@ class MatchGenePartnerWorker extends Actor with ActorLogging {
   override def postStop(): Unit =
     log.info(s"Stopping $name")
 
-  override def receive: Receive = {
+  override def receive: Receive = super.handleMasterCommunication orElse {
     case CalculateLCSLengths(genes, indices) =>
       val lengths = indices.map{ case (i, j) =>
         (i,j) -> longestCommonSubstringLength(genes(i), genes(j))

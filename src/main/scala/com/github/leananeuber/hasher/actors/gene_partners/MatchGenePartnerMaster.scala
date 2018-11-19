@@ -1,12 +1,12 @@
 package com.github.leananeuber.hasher.actors.gene_partners
 
-import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, Terminated}
+import akka.actor.{Actor, ActorLogging, PoisonPill, Props}
 import com.github.leananeuber.hasher.actors.Reaper
 import com.github.leananeuber.hasher.actors.gene_partners.MatchGenePartnerMaster.StartMatching
 import com.github.leananeuber.hasher.actors.gene_partners.MatchGenePartnerWorker.CalculateLCSLengths
-import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.{RegisterWorker, RegisterWorkerAck}
+import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.MasterHandling
 
-import scala.collection.mutable
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -22,10 +22,9 @@ object MatchGenePartnerMaster {
 }
 
 
-class MatchGenePartnerMaster(nWorkers: Int) extends Actor with ActorLogging {
+class MatchGenePartnerMaster(nWorkers: Int) extends Actor with ActorLogging with MasterHandling {
 
   val name: String = self.path.name
-  val workers: mutable.Set[ActorRef] = mutable.Set.empty
 
   override def preStart(): Unit = {
     log.info(s"Starting $name")
@@ -37,13 +36,7 @@ class MatchGenePartnerMaster(nWorkers: Int) extends Actor with ActorLogging {
     workers.foreach(_ ! PoisonPill)
   }
 
-  override def receive: Receive = {
-
-    case RegisterWorker =>
-      workers.add(sender)
-      context.watch(sender)
-      sender ! RegisterWorkerAck
-      log.info(s"$name: worker $sender registered")
+  override def receive: Receive = super.handleWorkerRegistrations orElse {
 
     case StartMatching(genes) =>
       if(workers.size < nWorkers) {
@@ -58,9 +51,5 @@ class MatchGenePartnerMaster(nWorkers: Int) extends Actor with ActorLogging {
           ref ! CalculateLCSLengths(genes, indexRange)
         }
       }
-
-    case Terminated(actorRef) =>
-      workers.remove(actorRef)
-      log.warning(s"$name: worker $actorRef terminated - was it on purpose?")
   }
 }
