@@ -16,8 +16,6 @@ import scala.language.postfixOps
 
 object PasswordCrackingWorker {
 
-  val passwordRange: Range = 0 to 1000000
-
   def props: Props = Props[PasswordCrackingWorker]
 
   case class CrackingFailedException(m: String) extends RuntimeException(m)
@@ -50,27 +48,29 @@ class PasswordCrackingWorker extends Actor with ActorLogging {
       registerWorkerCancellable.cancel()
       log.info(s"$name: successfully registered at master actor")
 
-    case CrackPasswordsCommand(secrets) =>
-      log.info(s"$name: working on ${secrets.keys} passwords")
-      sender() ! PasswordsCrackedEvent(decrypt(secrets))
+    case CrackPasswordsCommand(secrets, range) =>
+      log.info(s"$name: checking passwords in range from ${range.start} to ${range.end}")
+      sender() ! PasswordsCrackedEvent(decrypt(secrets, range))
 
     // catch-all case: just log
     case m =>
       log.warning(s"$name: Received unknown message: $m")
   }
 
-  def decrypt(secrets: Map[Int, String]): Map[Int, Int] = secrets.map( idHashTuple => {
-    val realValue = unhash(idHashTuple._2) match {
-      case Some(real) => real
-      case None => throw CrackingFailedException("Could not decrypt password hash")
-    }
-    idHashTuple._1 -> realValue
-  })
+  def decrypt(secrets: Map[Int, String], range: Range): Map[Int, Int] = {
+    val rainbow = generateRainbow(range)
+    log.info("Successfully generated rainbow table! Yay!")
+    for {
+      idHashTuple <- secrets
+      realValue <- unhash(idHashTuple._2, rainbow)
+    } yield idHashTuple._1 -> realValue
+  }
 
-  private def unhash(hexHash: String): Option[Int] = passwordRange
-    .map ( i => i -> hash(i) )
-    .find{ case (_, h) => h.equals(hexHash) }
-    .map ( indexHashTuple => indexHashTuple._1 )
+  private def unhash(hexHash: String, rainbow: Map[String, Int]): Option[Int] = rainbow.get(hexHash)
+
+  private def generateRainbow(range: Range): Map[String, Int] = {
+    range.map(x => hash(x) -> x).toMap
+  }
 
   private def hash(number: Int) = {
     val digest = MessageDigest.getInstance("SHA-256")

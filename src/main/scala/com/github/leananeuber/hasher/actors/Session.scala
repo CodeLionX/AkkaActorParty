@@ -3,7 +3,7 @@ package com.github.leananeuber.hasher.actors
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
 import com.github.leananeuber.hasher.protocols.SessionSetupProtocol.{RegisterAtSession, RegisteredAtSessionAck}
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingMaster
-import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol.{CrackPasswordsCommand, PasswordsCrackedEvent}
+import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol.{CrackPasswordsCommand, PasswordsCrackedEvent, StartCrackingCommand}
 
 
 object Session {
@@ -49,7 +49,7 @@ class Session(nSlaves: Int) extends Actor with ActorLogging {
         ).zipWithIndex.map(_.swap).toMap
 
         // start processing
-        pcMaster ! CrackPasswordsCommand(pws)
+        pcMaster ! StartCrackingCommand(pws)
         context.become(running(newSlaveRegistry, pcMaster))
       }
   }
