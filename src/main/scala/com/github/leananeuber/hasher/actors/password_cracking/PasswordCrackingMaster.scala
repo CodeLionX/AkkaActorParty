@@ -17,19 +17,18 @@ object PasswordCrackingMaster {
 
   val name = "pc-master"
 
-  def props(nWorkers: Int): Props = Props(new PasswordCrackingMaster(nWorkers))
+  def props(nWorkers: Int, session: ActorRef): Props = Props(new PasswordCrackingMaster(nWorkers, session))
 
 }
 
 
-class PasswordCrackingMaster(nWorkers: Int) extends Actor with ActorLogging {
+class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor with ActorLogging {
   import PasswordCrackingMaster._
 
   val name: String = self.path.name
 
   val workers: mutable.Set[ActorRef] = mutable.Set.empty
   val receivedResponses: mutable.Map[ActorRef, Map[Int, Int]] = mutable.Map.empty
-  var receiverActor: ActorRef = _
 
   override def preStart(): Unit = {
     log.info(s"Starting $name")
@@ -54,7 +53,6 @@ class PasswordCrackingMaster(nWorkers: Int) extends Actor with ActorLogging {
         context.system.scheduler.scheduleOnce(1 second, self, StartCrackingCommand(secrets))
 
       } else {
-        receiverActor = sender
         val workPackages = splitRange()
         log.info(
           s"""$name: received command message
@@ -64,11 +62,12 @@ class PasswordCrackingMaster(nWorkers: Int) extends Actor with ActorLogging {
       }
 
     case PasswordsCrackedEvent(passwords) =>
+      log.info(s"$name: received ${passwords.size} passwords from $sender")
       receivedResponses(sender) = passwords
       if(receivedResponses.size == workers.size) {
         val combinedPasswordMap = receivedResponses.values.reduce( _ ++ _)
-        receiverActor ! PasswordsCrackedEvent(combinedPasswordMap)
-      }
+        session ! PasswordsCrackedEvent(combinedPasswordMap)
+  }
 
     case Terminated(actorRef) =>
       workers.remove(actorRef)
@@ -88,8 +87,8 @@ class PasswordCrackingMaster(nWorkers: Int) extends Actor with ActorLogging {
   }
 
   def distributeWork(workPackages: Seq[Range], secrets: Map[Int, String]): Unit = {
-    workers.zip(workPackages).foreach{ case (ref, workPackages) =>
-      ref ! CrackPasswordsCommand(secrets, workPackages)
+    workers.zip(workPackages).foreach{ case (ref, packages) =>
+      ref ! CrackPasswordsCommand(secrets, packages)
     }
   }
 }

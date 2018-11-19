@@ -42,7 +42,7 @@ class Session(nSlaves: Int, inputFile: File) extends Actor with ActorLogging {
       else {
         val overallWorkers = newSlaveRegistry.values.sum
         log.debug(s"Starting pc-master with $overallWorkers workers")
-        val pcMaster = context.actorOf(PasswordCrackingMaster.props(overallWorkers), PasswordCrackingMaster.name)
+        val pcMaster = context.actorOf(PasswordCrackingMaster.props(overallWorkers, self), PasswordCrackingMaster.name)
 
         // read `input`
         val pws: Map[Int, String] = records.map{ case (id, record) =>
