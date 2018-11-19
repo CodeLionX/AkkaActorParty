@@ -59,7 +59,7 @@ object StartMasterCommand extends clist.Command(
     cluster.registerOnMemberUp{
       // create actors
       val reaper = system.actorOf(Reaper.props, Reaper.reaperName)
-      val session = system.actorOf(Session.props(nSlaves), Session.sessionName)
+      val session = system.actorOf(Session.props(nSlaves, input), Session.sessionName)
       val workerManager = system.actorOf(WorkerManager.props(nWorkers), WorkerManager.workerManagerName)
 
       // start processing
