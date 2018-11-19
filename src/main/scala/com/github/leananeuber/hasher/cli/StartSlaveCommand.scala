@@ -1,7 +1,10 @@
 package com.github.leananeuber.hasher.cli
 
+import akka.actor.Address
 import akka.cluster.Cluster
 import com.github.leananeuber.hasher.HasherActorSystem
+import com.github.leananeuber.hasher.protocols.SessionSetupProtocol.SetupSessionConnectionTo
+import com.github.leananeuber.hasher.actors.{Reaper, WorkerManager}
 import org.backuity.clist
 
 import scala.language.postfixOps
@@ -40,6 +43,11 @@ object StartSlaveCommand extends clist.Command(
     // TODO: start processing
     cluster.registerOnMemberUp{
       // create actors
+      val reaper = system.actorOf(Reaper.props, Reaper.reaperName)
+      val workerManager = system.actorOf(WorkerManager.props(nWorkers), WorkerManager.workerManagerName)
+
+      // start processing
+      workerManager ! SetupSessionConnectionTo(Address("akka", actorSystemName, masterHost, masterPort))
     }
   }
 }

@@ -2,13 +2,24 @@ package com.github.leananeuber.hasher.cli
 
 import java.io.File
 
+import akka.actor.{ActorRef, Address, PoisonPill}
 import akka.cluster.Cluster
-import com.github.leananeuber.hasher.{AkkaQuickstart, HasherActorSystem}
+import akka.pattern.ask
+import akka.util.Timeout
+import com.github.leananeuber.hasher.HasherActorSystem
+import com.github.leananeuber.hasher.protocols.SessionSetupProtocol.SetupSessionConnectionTo
+import com.github.leananeuber.hasher.actors.{Reaper, Session, WorkerManager}
+import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol.{CrackPasswordsCommand, PasswordsCrackedEvent}
+import com.github.leananeuber.hasher.actors.password_cracking.{PasswordCrackingMaster, PasswordCrackingWorker}
 import org.backuity.clist
 
+import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.util.Try
+import scala.util.control.NonFatal
+
 
 object StartMasterCommand extends clist.Command(
     name = "master",
@@ -47,20 +58,13 @@ object StartMasterCommand extends clist.Command(
     // TODO: start processing
     cluster.registerOnMemberUp{
       // create actors
-      // read `input`
-      // start processing
-    }
+      val reaper = system.actorOf(Reaper.props, Reaper.reaperName)
+      val session = system.actorOf(Session.props(nSlaves), Session.sessionName)
+      val workerManager = system.actorOf(WorkerManager.props(nWorkers), WorkerManager.workerManagerName)
 
-    // TODO: remove
-    //------------------------------------------------
-    // run example code on status UP
-    cluster.registerOnMemberUp{
-      AkkaQuickstart.runQuickstartExampleOn(system)
+      // start processing
+      workerManager ! SetupSessionConnectionTo(Address("akka", actorSystemName, host, port))
+
     }
-    // leave cluster after 2 seconds
-    system.scheduler.scheduleOnce(2 seconds) {
-      cluster.leave(cluster.selfAddress)
-    }
-    //------------------------------------------------
   }
 }

@@ -18,6 +18,7 @@ lazy val hasher = project
       "com.typesafe.akka" %% "akka-actor" % akkaVersion,
       "com.typesafe.akka" %% "akka-cluster" % akkaVersion,
       "com.typesafe.akka" %% "akka-cluster-tools" % akkaVersion,
+      "com.github.romix.akka" %% "akka-kryo-serialization" % "0.5.2",
       // test
       "com.typesafe.akka" %% "akka-testkit" % akkaVersion,
       "com.typesafe.akka" %% "akka-multi-node-testkit" % akkaVersion,
