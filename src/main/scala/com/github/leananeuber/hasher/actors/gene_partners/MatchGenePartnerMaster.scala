@@ -44,8 +44,10 @@ class MatchGenePartnerMaster(nWorkers: Int) extends Actor with ActorLogging with
         context.system.scheduler.scheduleOnce(1 second, self, StartMatching(genes))
 
       } else {
-        val combinations = ???
-        val ranges: Seq[Seq[(Int, Int)]] = ???
+        // generate index combinations
+        val n = genes.keys.max
+        val combinations = (0 until n).flatMap(i => (i+1 until n).map(j => i -> j))
+        val ranges = splitWork(combinations)
 
         workers.zip(ranges).foreach { case (ref, indexRange) =>
           ref ! CalculateLCSLengths(genes, indexRange)

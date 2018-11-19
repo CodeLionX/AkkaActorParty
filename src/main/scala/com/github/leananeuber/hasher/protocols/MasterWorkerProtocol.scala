@@ -8,6 +8,7 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.reflect.ClassTag
 
 object MasterWorkerProtocol {
 
@@ -32,6 +33,16 @@ object MasterWorkerProtocol {
         workers.remove(actorRef)
         log.warning(s"worker $actorRef terminated - was it on purpose?")
     }
+
+    def splitWork[T](work: Seq[T]): Seq[Seq[T]] = {
+      val nItems = work.size
+      val nPackages = workers.size
+      val remainder = nItems % nPackages != 0
+      val partitionSize = (if(remainder) 1 else 0) + (nItems / nPackages)
+
+      (0 until nPackages).map( i => work.slice(i*partitionSize, (i+1)*partitionSize) )
+    }
+
   }
 
   trait WorkerHandling { this: Actor with ActorLogging =>

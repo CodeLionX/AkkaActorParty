@@ -45,7 +45,7 @@ class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor wit
         context.system.scheduler.scheduleOnce(1 second, self, StartCrackingCommand(secrets))
 
       } else {
-        val workPackages = splitRange()
+        val workPackages = splitWork(passwordRange)
         log.info(
           s"""$name: received command message
              |  available workers: ${workers.size}
@@ -66,14 +66,7 @@ class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor wit
       log.warning(s"$name: Received unknown message: $m")
   }
 
-  def splitRange(): Seq[Range] = {
-    val remainder = passwordRange.end % nWorkers != 0
-    val partitionSize = (if(remainder) 1 else 0) + (passwordRange.end / nWorkers)
-
-    (0 until nWorkers).map(workerIndex => passwordRange.slice(workerIndex*partitionSize, (workerIndex+1)*partitionSize))
-  }
-
-  def distributeWork(workPackages: Seq[Range], secrets: Map[Int, String]): Unit = {
+  def distributeWork(workPackages: Seq[Seq[Int]], secrets: Map[Int, String]): Unit = {
     workers.zip(workPackages).foreach{ case (ref, packages) =>
       ref ! CrackPasswordsCommand(secrets, packages)
     }
