@@ -5,7 +5,7 @@ import java.io.File
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
 import com.github.leananeuber.hasher.protocols.SessionSetupProtocol.{RegisterAtSession, RegisteredAtSessionAck}
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingMaster
-import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol.{CrackPasswordsCommand, PasswordsCrackedEvent, StartCrackingCommand}
+import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol._
 import com.github.leananeuber.hasher.parsing.{StudentRecord, StudentsCSVParser}
 
 
@@ -51,14 +51,22 @@ class Session(nSlaves: Int, inputFile: File) extends Actor with ActorLogging {
 
         // start processing
         pcMaster ! StartCrackingCommand(pws)
-        context.become(running(newSlaveRegistry, pcMaster))
+        context.become(runningPasswordCrack(newSlaveRegistry, pcMaster))
       }
   }
 
-  def running(slaveRegistry: Map[ActorRef, Int], pcMaster: ActorRef): Receive = {
+  def runningPasswordCrack(slaveRegistry: Map[ActorRef, Int], pcMaster: ActorRef): Receive = {
 
     case PasswordsCrackedEvent(cleartexts) =>
       println(cleartexts)
+      pcMaster ! CalculateLinearCombinationCommand(cleartexts)
+      context.become(runningLinearCombination(slaveRegistry,pcMaster))
+  }
+
+  def runningLinearCombination(slaveRegistry: Map[ActorRef, Int], pcMaster: ActorRef): Receive = {
+
+    case LinearCombinationCalculatedEvent(passwordPrefixes) =>
+      //println(passwordPrefixes)
       pcMaster ! PoisonPill
       slaveRegistry.keys.foreach(_ ! PoisonPill)
       context.stop(self)

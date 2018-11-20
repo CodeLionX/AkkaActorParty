@@ -3,9 +3,10 @@ package com.github.leananeuber.hasher.actors.password_cracking
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, Terminated}
 import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.{RegisterWorker, RegisterWorkerAck}
 import com.github.leananeuber.hasher.actors.Reaper
-import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol.{CrackPasswordsCommand, PasswordsCrackedEvent, StartCrackingCommand}
+import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol._
 
-import scala.collection.mutable
+import scala.collection.immutable.NumericRange
+import scala.collection.{immutable, mutable}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -53,7 +54,7 @@ class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor wit
         context.system.scheduler.scheduleOnce(1 second, self, StartCrackingCommand(secrets))
 
       } else {
-        val workPackages = splitRange()
+        val workPackages = splitRange(passwordRange)
         log.info(
           s"""$name: received command message
              |  available workers: ${workers.size}
@@ -65,9 +66,28 @@ class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor wit
       log.info(s"$name: received ${passwords.size} passwords from $sender")
       receivedResponses(sender) = passwords
       if(receivedResponses.size == workers.size) {
-        val combinedPasswordMap = receivedResponses.values.reduce( _ ++ _)
+        val combinedPasswordMap = receivedResponses.values.reduce(_ ++ _)
         session ! PasswordsCrackedEvent(combinedPasswordMap)
-  }
+      }
+
+    case StartCalculateLinearCombinationCommand(passwords) => {
+      val range : NumericRange[Long] = 0L to Long.MaxValue
+      val workPackages = splitLongRange(range)
+      workers.zip(workPackages).foreach{ case (ref, packages) =>
+        ref ! CalculateLinearCombinationCommand(secrets, packages)
+      }
+
+
+      var result = solve(passwords.values.toBuffer)
+      var resultmap = passwords.keys.zip(result)
+      session ! LinearCombinationCalculatedEvent(resultmap.toMap)
+
+    }
+
+    case LinearCombinationCalculatedEvent(passwordPrefixes) => {
+      log.info(s"$name: received passwords with prefixes from $sender")
+      session ! LinearCombinationCalculatedEvent(passwordPrefixes)
+    }
 
     case Terminated(actorRef) =>
       workers.remove(actorRef)
@@ -78,12 +98,12 @@ class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor wit
       log.warning(s"$name: Received unknown message: $m")
   }
 
-  def splitRange(): Seq[Range] = {
+  def splitRange(range: Range): Seq[Range] = {
 
-    val remainder = passwordRange.end % nWorkers != 0
-    val partitionSize = (if(remainder) 1 else 0) + (passwordRange.end / nWorkers)
+    val remainder = range.end % nWorkers != 0
+    val partitionSize = (if(remainder) 1 else 0) + (range.end / nWorkers)
 
-    (0 until nWorkers).map(workerIndex => passwordRange.slice(workerIndex*partitionSize, (workerIndex+1)*partitionSize))
+    (0 until nWorkers).map(workerIndex => range.slice(workerIndex*partitionSize, (workerIndex+1)*partitionSize))
   }
 
   def distributeWork(workPackages: Seq[Range], secrets: Map[Int, String]): Unit = {
@@ -91,4 +111,45 @@ class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor wit
       ref ! CrackPasswordsCommand(secrets, packages)
     }
   }
+
+  def splitLongRange(range: NumericRange[Long]): immutable.IndexedSeq[immutable.IndexedSeq[Long]] = {
+
+    val remainder = range.end % nWorkers != 0
+    val partitionSize = (if(remainder) 1 else 0) + (range.end / nWorkers)
+
+    (0 until nWorkers).map(workerIndex => range.slice(workerIndex*partitionSize.toInt, (workerIndex+1)*partitionSize.toInt))
+  }
+
+  def distributeWork(workPackages: Seq[Range], secrets: Map[Int, String]): Unit = {
+    workers.zip(workPackages).foreach{ case (ref, packages) =>
+      ref ! CrackPasswordsCommand(secrets, packages)
+    }
+  }
+
+  def solve(numbers: mutable.Buffer[Int]): mutable.Buffer[Int] = {
+    var a = 0L
+    while(a <= Long.MaxValue){
+      val binary = a.toBinaryString
+      val prefixes = mutable.ArrayBuffer.fill(numbers.length)(1)
+
+      var i = 0
+
+      for(j <- binary.length-1 to 0 by -1){
+        if(binary.charAt(j) == '1')
+          prefixes.update(i, -1)
+        i += 1
+      }
+      if(sum(numbers, prefixes) == 0)
+        prefixes
+
+      a+=1
+    }
+    throw new RuntimeException("Prefix not found!")
+  }
+
+  def sum(numbers: mutable.Buffer[Int], prefixes: mutable.Buffer[Int]): Int = numbers
+      .zip(prefixes)
+      .map{case(p,n) => p*n}
+      .sum
+
 }
