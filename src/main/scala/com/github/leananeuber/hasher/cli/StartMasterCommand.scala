@@ -6,7 +6,6 @@ import akka.actor.Address
 import akka.cluster.Cluster
 import com.github.leananeuber.hasher.HasherActorSystem
 import com.github.leananeuber.hasher.actors.{Reaper, Session, WorkerManager}
-import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.SetupConnectionTo
 import com.github.leananeuber.hasher.protocols.SessionSetupProtocol.SetupSessionConnectionTo
 import org.backuity.clist
 

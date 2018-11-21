@@ -27,7 +27,8 @@ class MatchGenePartnerMaster(nWorkers: Int, session: ActorRef) extends Actor wit
 
   val name: String = self.path.name
 
-  val receivedResponses: mutable.Map[ActorRef, Map[(Int, Int), Int]] = mutable.Map.empty
+  val receivedResponses: mutable.Map[ActorRef, Map[Int, (Int, Int)]] = mutable.Map.empty
+  var n: Int = _
 
   override def preStart(): Unit = {
     log.info(s"Starting $name")
@@ -48,8 +49,8 @@ class MatchGenePartnerMaster(nWorkers: Int, session: ActorRef) extends Actor wit
 
       } else {
         // generate index combinations
-        val n = genes.keys.max
-        val combinations = (0 until n).flatMap(i => (i+1 until n).map(j => i -> j))
+        n = genes.keys.max
+        val combinations = (1 to n).flatMap(i => (i+1 to n).map(j => i -> j))
         val ranges = splitWork(combinations)
 
         workers.zip(ranges).foreach { case (ref, indexRange) =>
@@ -60,9 +61,15 @@ class MatchGenePartnerMaster(nWorkers: Int, session: ActorRef) extends Actor wit
     case LCSLengthsCalculated(lengths) =>
       log.info(s"$name: received ${lengths.size} lenghts from $sender")
       receivedResponses(sender) = lengths
+
       if(receivedResponses.size == workers.size) {
-        val combinedLengthTable = receivedResponses.values.reduce( _ ++ _)
-        log.info(s"The whole table:\n$combinedLengthTable")
+        val genePartners = (for{
+          id <- 1 to n
+          potPartners = receivedResponses.values.flatMap(_.get(id))
+          if potPartners.nonEmpty
+        } yield id -> potPartners.maxBy(_._2)._1).toMap
+        log.info(s"The whole table:\n$genePartners")
+        log.info(s"Table size: ${genePartners.size}")
         session ! "FINISHED!"
       }
   }
