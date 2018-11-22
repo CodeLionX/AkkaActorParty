@@ -2,7 +2,7 @@ package com.github.leananeuber.hasher.actors.gene_partners
 
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
 import com.github.leananeuber.hasher.actors.Reaper
-import com.github.leananeuber.hasher.actors.gene_partners.MatchGenePartnerMaster.StartMatching
+import com.github.leananeuber.hasher.actors.gene_partners.MatchGenePartnerMaster.{MatchedGenes, StartMatchingGenes}
 import com.github.leananeuber.hasher.actors.gene_partners.MatchGenePartnerWorker.{CalculateLCSLengths, LCSLengthsCalculated}
 import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.MasterHandling
 
@@ -18,7 +18,9 @@ object MatchGenePartnerMaster {
 
   def props(nWorkers: Int, session: ActorRef): Props = Props(new MatchGenePartnerMaster(nWorkers, session))
 
-  case class StartMatching(genes: Map[Int, String])
+  case class StartMatchingGenes(genes: Map[Int, String])
+
+  case class MatchedGenes(genePartners: Map[Int, Int])
 
 }
 
@@ -40,12 +42,12 @@ class MatchGenePartnerMaster(nWorkers: Int, session: ActorRef) extends Actor wit
     workers.foreach(_ ! PoisonPill)
   }
 
-  override def receive: Receive = super.handleWorkerRegistrations orElse {
+  override def receive: Receive = handleWorkerRegistrations orElse {
 
-    case StartMatching(genes) =>
+    case StartMatchingGenes(genes) =>
       if(workers.size < nWorkers) {
         // delay processing of message until all workers are ready
-        context.system.scheduler.scheduleOnce(1 second, self, StartMatching(genes))
+        context.system.scheduler.scheduleOnce(1 second, self, StartMatchingGenes(genes))
 
       } else {
         // generate index combinations
@@ -68,9 +70,7 @@ class MatchGenePartnerMaster(nWorkers: Int, session: ActorRef) extends Actor wit
           potPartners = receivedResponses.values.flatMap(_.get(id))
           if potPartners.nonEmpty
         } yield id -> potPartners.maxBy(_._2)._1).toMap
-        log.info(s"The whole table:\n$genePartners")
-        log.info(s"Table size: ${genePartners.size}")
-        session ! "FINISHED!"
+        session ! MatchedGenes(genePartners)
       }
   }
 }

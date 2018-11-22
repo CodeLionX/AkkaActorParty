@@ -38,7 +38,7 @@ class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor wit
     workers.foreach(_ ! PoisonPill)
   }
 
-  override def receive: Receive = super.handleWorkerRegistrations orElse {
+  override def receive: Receive = handleWorkerRegistrations orElse {
     case StartCrackingCommand(secrets) =>
       if(workers.size < nWorkers) {
         // delay processing of message until all workers are ready

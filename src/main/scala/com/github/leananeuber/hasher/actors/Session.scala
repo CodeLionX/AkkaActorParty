@@ -4,11 +4,11 @@ import java.io.File
 
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
 import com.github.leananeuber.hasher.actors.gene_partners.MatchGenePartnerMaster
-import com.github.leananeuber.hasher.actors.gene_partners.MatchGenePartnerMaster.StartMatching
-import com.github.leananeuber.hasher.protocols.SessionSetupProtocol.{RegisterAtSession, RegisteredAtSessionAck}
+import com.github.leananeuber.hasher.actors.gene_partners.MatchGenePartnerMaster.{MatchedGenes, StartMatchingGenes}
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingMaster
-import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol.{CrackPasswordsCommand, PasswordsCrackedEvent, StartCrackingCommand}
+import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol.{PasswordsCrackedEvent, StartCrackingCommand}
 import com.github.leananeuber.hasher.parsing.{StudentRecord, StudentsCSVParser}
+import com.github.leananeuber.hasher.protocols.SessionSetupProtocol.{RegisterAtSession, RegisteredAtSessionAck}
 
 
 object Session {
@@ -23,6 +23,8 @@ object Session {
 class Session(nSlaves: Int, inputFile: File) extends Actor with ActorLogging {
   import Session._
 
+  val records: Map[Int, StudentRecord] = StudentsCSVParser.readStudentCsvFile(inputFile)
+
   override def preStart(): Unit = {
     log.info(s"Starting $sessionName")
     Reaper.watchWithDefault(self)
@@ -31,19 +33,19 @@ class Session(nSlaves: Int, inputFile: File) extends Actor with ActorLogging {
   override def postStop(): Unit =
     log.info(s"Stopping $sessionName")
 
-  override def receive: Receive = sessionSetup(Map.empty, StudentsCSVParser.readStudentCsvFile(inputFile))
+  override def receive: Receive = sessionSetup(Map.empty)
 
-  def sessionSetup(slaveRegistry: Map[ActorRef, Int], records: Map[Int, StudentRecord]): Receive = {
+  def sessionSetup(slaveRegistry: Map[ActorRef, Int]): Receive = {
     case RegisterAtSession(nWorker) =>
       val newSlaveRegistry = slaveRegistry + (sender -> nWorker)
       sender ! RegisteredAtSessionAck
 
       if(newSlaveRegistry.size < (nSlaves+1))
-        context.become(sessionSetup(newSlaveRegistry, records))
+        context.become(sessionSetup(newSlaveRegistry))
 
       else {
         val overallWorkers = newSlaveRegistry.values.sum
-        log.debug(s"Starting pc-master with $overallWorkers workers")
+        log.debug(s"Starting masters with $overallWorkers workers")
         val pcMaster = context.actorOf(PasswordCrackingMaster.props(overallWorkers, self), PasswordCrackingMaster.name)
         val mgpMaster = context.actorOf(MatchGenePartnerMaster.props(overallWorkers, self), MatchGenePartnerMaster.name)
 
@@ -51,13 +53,9 @@ class Session(nSlaves: Int, inputFile: File) extends Actor with ActorLogging {
         val pws: Map[Int, String] = records.map{ case (id, record) =>
           id -> record.passwordHash
         }
-        val genes: Map[Int, String] = records.map{ case (id, record) =>
-          id -> record.geneSeq
-        }
 
         // start processing
         pcMaster ! StartCrackingCommand(pws)
-        mgpMaster ! StartMatching(genes)
         context.become(runningPasswordCracking(newSlaveRegistry, pcMaster, mgpMaster))
       }
   }
@@ -65,21 +63,28 @@ class Session(nSlaves: Int, inputFile: File) extends Actor with ActorLogging {
   def runningPasswordCracking(slaveRegistry: Map[ActorRef, Int], pcMaster: ActorRef, mgpMaster: ActorRef): Receive = {
 
     case PasswordsCrackedEvent(cleartexts) =>
+      log.info(s"session received cleartexts")
       println(cleartexts)
-//      pcMaster ! PoisonPill
-//      slaveRegistry.keys.foreach(_ ! PoisonPill)
-//      context.stop(self)
+
+      val genes: Map[Int, String] = records.map{ case (id, record) =>
+        id -> record.geneSeq
+      }
+      mgpMaster ! StartMatchingGenes(genes)
       context.become(runningGeneMatching(slaveRegistry, pcMaster, mgpMaster))
   }
 
   def runningGeneMatching(slaveRegistry: Map[ActorRef, Int], pcMaster: ActorRef, mgpMaster: ActorRef): Receive = {
 
-    case m =>
-      println(m)
-      pcMaster ! PoisonPill
-      mgpMaster ! PoisonPill
-      slaveRegistry.keys.foreach(_ ! PoisonPill)
-      context.stop(self)
+    case MatchedGenes(genePartners) =>
+      log.info(s"session received gene partners")
+      println(genePartners)
+      shutdown(Seq(pcMaster, mgpMaster) ++ slaveRegistry.keys)
+
+  }
+
+  def shutdown(actors: Seq[ActorRef]): Unit = {
+    actors.foreach(_ ! PoisonPill)
+    context.stop(self)
   }
 
 }
