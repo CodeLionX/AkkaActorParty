@@ -3,15 +3,10 @@ package com.github.leananeuber.hasher.actors.password_cracking
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 
-import akka.actor.{Actor, ActorLogging, Cancellable, Props}
-import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.{RegisterWorker, RegisterWorkerAck}
-import com.github.leananeuber.hasher.protocols.SessionSetupProtocol.SetupSessionConnectionTo
+import akka.actor.{Actor, ActorLogging, Props}
+import com.github.leananeuber.hasher.actors.Reaper
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol.{CrackPasswordsCommand, PasswordsCrackedEvent}
-import com.github.leananeuber.hasher.actors.{Reaper, Session}
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
-import scala.language.postfixOps
+import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.WorkerHandling
 
 
 object PasswordCrackingWorker {
@@ -23,11 +18,9 @@ object PasswordCrackingWorker {
 }
 
 
-class PasswordCrackingWorker extends Actor with ActorLogging {
-  import PasswordCrackingWorker._
+class PasswordCrackingWorker extends Actor with ActorLogging with WorkerHandling {
 
   val name: String = self.path.name
-  var registerWorkerCancellable: Cancellable = _
 
   override def preStart(): Unit = {
     log.info(s"Starting $name")
@@ -37,19 +30,10 @@ class PasswordCrackingWorker extends Actor with ActorLogging {
   override def postStop(): Unit =
     log.info(s"Stopping $name")
 
-  override def receive: Receive = {
-    case SetupSessionConnectionTo(address) =>
-      val masterSelection = context.actorSelection(s"$address/user/${Session.sessionName}/${PasswordCrackingMaster.name}")
-      registerWorkerCancellable = context.system.scheduler.schedule(Duration.Zero, 5 seconds){
-        masterSelection ! RegisterWorker
-      }
-
-    case RegisterWorkerAck =>
-      registerWorkerCancellable.cancel()
-      log.info(s"$name: successfully registered at master actor")
+  override def receive: Receive = super.handleMasterCommunicationTo(PasswordCrackingMaster.name) orElse {
 
     case CrackPasswordsCommand(secrets, range) =>
-      log.info(s"$name: checking passwords in range from ${range.start} to ${range.end}")
+      log.info(s"$name: checking passwords in range $range")
       sender() ! PasswordsCrackedEvent(decrypt(secrets, range))
 
     // catch-all case: just log
@@ -57,7 +41,7 @@ class PasswordCrackingWorker extends Actor with ActorLogging {
       log.warning(s"$name: Received unknown message: $m")
   }
 
-  def decrypt(secrets: Map[Int, String], range: Range): Map[Int, Int] = {
+  def decrypt(secrets: Map[Int, String], range: Seq[Int]): Map[Int, Int] = {
     val rainbow = generateRainbow(range)
     log.info("Successfully generated rainbow table! Yay!")
     for {
@@ -68,7 +52,7 @@ class PasswordCrackingWorker extends Actor with ActorLogging {
 
   private def unhash(hexHash: String, rainbow: Map[String, Int]): Option[Int] = rainbow.get(hexHash)
 
-  private def generateRainbow(range: Range): Map[String, Int] = {
+  private def generateRainbow(range: Seq[Int]): Map[String, Int] = {
     range.map(x => hash(x) -> x).toMap
   }
 

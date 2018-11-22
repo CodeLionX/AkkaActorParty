@@ -2,9 +2,11 @@ package com.github.leananeuber.hasher.actors
 
 import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, OneForOneStrategy, Props, SupervisorStrategy}
-import com.github.leananeuber.hasher.protocols.SessionSetupProtocol.{RegisterAtSession, RegisteredAtSessionAck, SetupSessionConnectionTo}
-import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingWorker
+import com.github.leananeuber.hasher.actors.gene_partners.{MatchGenePartnerMaster, MatchGenePartnerWorker}
+import com.github.leananeuber.hasher.actors.password_cracking.{PasswordCrackingMaster, PasswordCrackingWorker}
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingWorker.CrackingFailedException
+import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.SetupConnectionTo
+import com.github.leananeuber.hasher.protocols.SessionSetupProtocol.{RegisterAtSession, RegisteredAtSessionAck, SetupSessionConnectionTo}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -24,6 +26,11 @@ class WorkerManager(nWorkers: Int) extends Actor with ActorLogging {
 
   val pc_workers: Seq[ActorRef] = (0 until nWorkers).map{ id =>
     val worker = context.actorOf(PasswordCrackingWorker.props, s"pc-worker-$id")
+    context.watch(worker)
+    worker
+  }
+  val mgp_worker: Seq[ActorRef] = (0 until nWorkers).map{ id =>
+    val worker = context.actorOf(MatchGenePartnerWorker.props, s"mgp-worker-$id")
     context.watch(worker)
     worker
   }
@@ -48,7 +55,8 @@ class WorkerManager(nWorkers: Int) extends Actor with ActorLogging {
       val registerCancellable = context.system.scheduler.schedule(Duration.Zero, 5 seconds) {
         sessionSelection ! RegisterAtSession(nWorkers)
       }
-      context.children.foreach(_ ! SetupSessionConnectionTo(address))
+
+      context.children.foreach(_ ! SetupConnectionTo(address))
       context.become(waitingForSetupAck(registerCancellable))
   }
 
