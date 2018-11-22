@@ -71,22 +71,19 @@ class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor wit
       }
 
     case StartCalculateLinearCombinationCommand(passwords) => {
-      val range : NumericRange[Long] = 0L to Long.MaxValue
-      val workPackages = splitLongRange(range)
-      workers.zip(workPackages).foreach{ case (ref, packages) =>
-        ref ! CalculateLinearCombinationCommand(secrets, packages)
+      val searchSpace: Seq[String] = (0L to Long.MaxValue).map(_.toBinaryString)
+      val workPackages = splitLongRange()
+      var a = 0
+      workers
+        .zip(workPackages)
+        .foreach{ case (ref, packages) =>
+        ref ! CalculateLinearCombinationCommand(passwords, packages)
       }
-
-
-      var result = solve(passwords.values.toBuffer)
-      var resultmap = passwords.keys.zip(result)
-      session ! LinearCombinationCalculatedEvent(resultmap.toMap)
-
     }
 
-    case LinearCombinationCalculatedEvent(passwordPrefixes) => {
+    case LinearCombinationCalculatedEvent(combination) => {
       log.info(s"$name: received passwords with prefixes from $sender")
-      session ! LinearCombinationCalculatedEvent(passwordPrefixes)
+      session ! LinearCombinationCalculatedEvent(combination)
     }
 
     case Terminated(actorRef) =>
@@ -99,7 +96,6 @@ class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor wit
   }
 
   def splitRange(range: Range): Seq[Range] = {
-
     val remainder = range.end % nWorkers != 0
     val partitionSize = (if(remainder) 1 else 0) + (range.end / nWorkers)
 
@@ -111,45 +107,4 @@ class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor wit
       ref ! CrackPasswordsCommand(secrets, packages)
     }
   }
-
-  def splitLongRange(range: NumericRange[Long]): immutable.IndexedSeq[immutable.IndexedSeq[Long]] = {
-
-    val remainder = range.end % nWorkers != 0
-    val partitionSize = (if(remainder) 1 else 0) + (range.end / nWorkers)
-
-    (0 until nWorkers).map(workerIndex => range.slice(workerIndex*partitionSize.toInt, (workerIndex+1)*partitionSize.toInt))
-  }
-
-  def distributeWork(workPackages: Seq[Range], secrets: Map[Int, String]): Unit = {
-    workers.zip(workPackages).foreach{ case (ref, packages) =>
-      ref ! CrackPasswordsCommand(secrets, packages)
-    }
-  }
-
-  def solve(numbers: mutable.Buffer[Int]): mutable.Buffer[Int] = {
-    var a = 0L
-    while(a <= Long.MaxValue){
-      val binary = a.toBinaryString
-      val prefixes = mutable.ArrayBuffer.fill(numbers.length)(1)
-
-      var i = 0
-
-      for(j <- binary.length-1 to 0 by -1){
-        if(binary.charAt(j) == '1')
-          prefixes.update(i, -1)
-        i += 1
-      }
-      if(sum(numbers, prefixes) == 0)
-        prefixes
-
-      a+=1
-    }
-    throw new RuntimeException("Prefix not found!")
-  }
-
-  def sum(numbers: mutable.Buffer[Int], prefixes: mutable.Buffer[Int]): Int = numbers
-      .zip(prefixes)
-      .map{case(p,n) => p*n}
-      .sum
-
 }

@@ -59,14 +59,14 @@ class Session(nSlaves: Int, inputFile: File) extends Actor with ActorLogging {
 
     case PasswordsCrackedEvent(cleartexts) =>
       println(cleartexts)
-      pcMaster ! CalculateLinearCombinationCommand(cleartexts)
+      pcMaster ! StartCalculateLinearCombinationCommand(cleartexts)
       context.become(runningLinearCombination(slaveRegistry,pcMaster))
   }
 
   def runningLinearCombination(slaveRegistry: Map[ActorRef, Int], pcMaster: ActorRef): Receive = {
 
-    case LinearCombinationCalculatedEvent(passwordPrefixes) =>
-      //println(passwordPrefixes)
+    case LinearCombinationCalculatedEvent(combination) =>
+      println(combination)
       pcMaster ! PoisonPill
       slaveRegistry.keys.foreach(_ ! PoisonPill)
       context.stop(self)

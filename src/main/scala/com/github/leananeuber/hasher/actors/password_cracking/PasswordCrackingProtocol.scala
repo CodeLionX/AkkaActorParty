@@ -1,5 +1,6 @@
 package com.github.leananeuber.hasher.actors.password_cracking
 
+import scala.collection.immutable.NumericRange
 import scala.collection.mutable
 
 object PasswordCrackingProtocol {
@@ -10,10 +11,10 @@ object PasswordCrackingProtocol {
 
   case class PasswordsCrackedEvent(cleartexts: Map[Int, Int])
 
-  case class CalculateLinearCombinationCommand(numbers: mutable.Buffer[Int])
+  case class CalculateLinearCombinationCommand(passwords: Map[Int, Int], range: IndexedSeq[Long])
 
   case class StartCalculateLinearCombinationCommand(cleartexts: Map[Int, Int])
 
-  case class LinearCombinationCalculatedEvent(passwordPrefixes: Map[Int, Int])
+  case class LinearCombinationCalculatedEvent(combination: Map[Int, Int])
 
 }

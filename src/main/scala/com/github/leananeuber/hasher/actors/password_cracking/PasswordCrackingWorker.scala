@@ -6,9 +6,11 @@ import java.security.MessageDigest
 import akka.actor.{Actor, ActorLogging, Cancellable, Props}
 import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.{RegisterWorker, RegisterWorkerAck}
 import com.github.leananeuber.hasher.protocols.SessionSetupProtocol.SetupSessionConnectionTo
-import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol.{CrackPasswordsCommand, PasswordsCrackedEvent}
+import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol.{CalculateLinearCombinationCommand, CrackPasswordsCommand, LinearCombinationCalculatedEvent, PasswordsCrackedEvent}
 import com.github.leananeuber.hasher.actors.{Reaper, Session}
 
+import scala.collection.immutable.NumericRange
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -52,6 +54,12 @@ class PasswordCrackingWorker extends Actor with ActorLogging {
       log.info(s"$name: checking passwords in range from ${range.start} to ${range.end}")
       sender() ! PasswordsCrackedEvent(decrypt(secrets, range))
 
+    case CalculateLinearCombinationCommand(passwords: Map[Int, Int], range: IndexedSeq[Long]) =>
+      var result = solve(passwords.values.toBuffer, range)
+      var resultmap = passwords.keys.zip(result)
+      sender ! LinearCombinationCalculatedEvent(resultmap.toMap)
+
+
     // catch-all case: just log
     case m =>
       log.warning(s"$name: Received unknown message: $m")
@@ -80,4 +88,30 @@ class PasswordCrackingWorker extends Actor with ActorLogging {
       ((byte & 0xff) + 0x100).toHexString.substring(1)
     ).mkString("")
   }
+
+  def solve(numbers: mutable.Buffer[Int], range: IndexedSeq[Long]): mutable.Buffer[Int] = {
+    var a = range(0)
+    while(a < range(range.length)){
+      val binary = a.toBinaryString
+      val prefixes = mutable.ArrayBuffer.fill(numbers.length)(1)
+
+      var i = 0
+
+      for(j <- binary.length-1 to 0 by -1){
+        if(binary.charAt(j) == '1')
+          prefixes.update(i, -1)
+        i += 1
+      }
+      if(sum(numbers, prefixes) == 0)
+        prefixes
+
+      a+=1L
+    }
+    throw new RuntimeException("Prefix not found!")
+  }
+
+  def sum(numbers: mutable.Buffer[Int], prefixes: mutable.Buffer[Int]): Int = numbers
+    .zip(prefixes)
+    .map{case(p,n) => p*n}
+    .sum
 }
