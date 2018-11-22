@@ -39,10 +39,14 @@ class PasswordCrackingWorker extends Actor with ActorLogging with WorkerHandling
       log.info(s"$name: checking passwords in range $range")
       sender() ! PasswordsCrackedEvent(decrypt(secrets, range))
 
-    case CalculateLinearCombinationCommand(passwords, range) =>
-      var result = solve(passwords.values.toBuffer, range)
-      var resultmap = passwords.keys.zip(result)
-      sender ! LinearCombinationCalculatedEvent(resultmap.toMap)
+    case CalculateLinearCombinationCommand(passwords, index, nWorkers) =>
+      var result = solve(passwords.values.toBuffer, index, nWorkers)
+      result match {
+        case Some(prefixes) =>
+          val resultmap = passwords.keys.zip(prefixes).toMap
+          sender ! LinearCombinationCalculatedEvent(resultmap)
+        case None =>
+      }
 
 
     // catch-all case: just log
@@ -74,21 +78,28 @@ class PasswordCrackingWorker extends Actor with ActorLogging with WorkerHandling
     ).mkString("")
   }
 
-  def solve(numbers: mutable.Buffer[Int], range: Seq[String]): mutable.Buffer[Int] = {
-    for(a <- range){
-      val prefixes = mutable.ArrayBuffer.fill(numbers.length)(1)
+  def solve(numbers: mutable.Buffer[Int], index: Int, nWorkers: Int): Option[mutable.Buffer[Int]] = {
+    var windowSize = Long.MaxValue/nWorkers + 1
+    var a = index*windowSize
+    var e = if(index == nWorkers) Long.MaxValue - 1 else (index+1)*windowSize -1
+    log.info(s"Start worker $index: $a")
+    log.info(s"End worker $index: $e")
+    while(a < e){
+      val binary = a.toBinaryString
+      val prefixes = mutable.ArrayBuffer.fill(64)(1)
 
       var i = 0
-      for(j <- a.length-1 to 0 by -1){
-        if(a.charAt(j) == '1')
+      for(j <- binary.length-1 to 0 by -1){
+        if(binary.charAt(j) == '1')
           prefixes.update(i, -1)
         i += 1
       }
       if(sum(numbers, prefixes) == 0)
-        prefixes
-
+        return Some(prefixes)
+      a+=1
     }
-    throw new RuntimeException("Prefix not found!")
+    log.warning("Prefix not found!")
+    None
   }
 
   def sum(numbers: mutable.Buffer[Int], prefixes: mutable.Buffer[Int]): Int = numbers

@@ -62,19 +62,17 @@ class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor wit
       }
 
     case StartCalculateLinearCombinationCommand(passwords) => {
-      val searchSpace: Seq[String] = (0L to Long.MaxValue).map(_.toBinaryString)
-      val workPackages = splitWork(searchSpace)
-      var a = 0
       workers
-        .zip(workPackages)
-        .foreach{ case (ref, packages) =>
-        ref ! CalculateLinearCombinationCommand(passwords, packages)
+        .zip(0 until nWorkers)
+        .foreach{ case (ref, index) =>
+        ref ! CalculateLinearCombinationCommand(passwords, index, nWorkers)
       }
     }
 
     case LinearCombinationCalculatedEvent(combination) => {
       log.info(s"$name: received passwords with prefixes from $sender")
       session ! LinearCombinationCalculatedEvent(combination)
+
     }
 
     case Terminated(actorRef) =>

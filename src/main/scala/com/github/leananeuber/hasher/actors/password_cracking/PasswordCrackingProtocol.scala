@@ -8,7 +8,7 @@ object PasswordCrackingProtocol {
 
   case class PasswordsCrackedEvent(cleartexts: Map[Int, Int])
 
-  case class CalculateLinearCombinationCommand(passwords: Map[Int, Int], range: Seq[String])
+  case class CalculateLinearCombinationCommand(passwords: Map[Int, Int], index: Int, nWorkers: Int)
 
   case class StartCalculateLinearCombinationCommand(cleartexts: Map[Int, Int])
 

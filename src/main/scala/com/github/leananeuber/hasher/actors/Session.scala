@@ -63,8 +63,7 @@ class Session(nSlaves: Int, inputFile: File) extends Actor with ActorLogging {
   def runningPasswordCracking(slaveRegistry: Map[ActorRef, Int], pcMaster: ActorRef, mgpMaster: ActorRef): Receive = {
 
     case PasswordsCrackedEvent(cleartexts) =>
-      log.info(s"session received cleartexts")
-      println(cleartexts)
+      log.info(s"session received cleartexts:\n$cleartexts")
 
       pcMaster ! StartCalculateLinearCombinationCommand(cleartexts)
       context.become(runningLinearCombination(slaveRegistry, pcMaster, mgpMaster))
@@ -73,7 +72,7 @@ class Session(nSlaves: Int, inputFile: File) extends Actor with ActorLogging {
   def runningLinearCombination(slaveRegistry: Map[ActorRef, Int], pcMaster: ActorRef, mgpMaster: ActorRef): Receive = {
 
     case LinearCombinationCalculatedEvent(combinations) =>
-      println(combinations)
+      log.info(s"session received combinations:\n$combinations")
 
       val genes: Map[Int, String] = records.map{ case (id, record) =>
         id -> record.geneSeq
@@ -85,8 +84,7 @@ class Session(nSlaves: Int, inputFile: File) extends Actor with ActorLogging {
   def runningGeneMatching(slaveRegistry: Map[ActorRef, Int], pcMaster: ActorRef, mgpMaster: ActorRef): Receive = {
 
     case MatchedGenes(genePartners) =>
-      log.info(s"session received gene partners")
-      println(genePartners)
+      log.info(s"session received gene partners:\n$genePartners")
       shutdown(Seq(pcMaster, mgpMaster) ++ slaveRegistry.keys)
 
   }
