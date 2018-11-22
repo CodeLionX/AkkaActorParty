@@ -2,23 +2,14 @@ package com.github.leananeuber.hasher.cli
 
 import java.io.File
 
-import akka.actor.{ActorRef, Address, PoisonPill}
+import akka.actor.Address
 import akka.cluster.Cluster
-import akka.pattern.ask
-import akka.util.Timeout
 import com.github.leananeuber.hasher.HasherActorSystem
-import com.github.leananeuber.hasher.protocols.SessionSetupProtocol.SetupSessionConnectionTo
 import com.github.leananeuber.hasher.actors.{Reaper, Session, WorkerManager}
-import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol.{CrackPasswordsCommand, PasswordsCrackedEvent}
-import com.github.leananeuber.hasher.actors.password_cracking.{PasswordCrackingMaster, PasswordCrackingWorker}
+import com.github.leananeuber.hasher.protocols.SessionSetupProtocol.SetupSessionConnectionTo
 import org.backuity.clist
 
-import scala.concurrent.Await
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
 import scala.language.postfixOps
-import scala.util.Try
-import scala.util.control.NonFatal
 
 
 object StartMasterCommand extends clist.Command(

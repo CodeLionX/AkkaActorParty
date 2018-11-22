@@ -1,12 +1,11 @@
 package com.github.leananeuber.hasher.actors.password_cracking
 
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, Terminated}
-import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.{RegisterWorker, RegisterWorkerAck}
 import com.github.leananeuber.hasher.actors.Reaper
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol._
+import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.MasterHandling
 
-import scala.collection.immutable.NumericRange
-import scala.collection.{immutable, mutable}
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -23,12 +22,10 @@ object PasswordCrackingMaster {
 }
 
 
-class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor with ActorLogging {
+class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor with ActorLogging with MasterHandling {
   import PasswordCrackingMaster._
 
   val name: String = self.path.name
-
-  val workers: mutable.Set[ActorRef] = mutable.Set.empty
   val receivedResponses: mutable.Map[ActorRef, Map[Int, Int]] = mutable.Map.empty
 
   override def preStart(): Unit = {
@@ -41,20 +38,14 @@ class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor wit
     workers.foreach(_ ! PoisonPill)
   }
 
-  override def receive: Receive = {
-    case RegisterWorker =>
-      workers.add(sender)
-      context.watch(sender)
-      sender ! RegisterWorkerAck
-      log.info(s"$name: worker $sender registered")
-
+  override def receive: Receive = handleWorkerRegistrations orElse {
     case StartCrackingCommand(secrets) =>
       if(workers.size < nWorkers) {
         // delay processing of message until all workers are ready
         context.system.scheduler.scheduleOnce(1 second, self, StartCrackingCommand(secrets))
 
       } else {
-        val workPackages = splitRange(passwordRange)
+        val workPackages = splitWork(passwordRange)
         log.info(
           s"""$name: received command message
              |  available workers: ${workers.size}
@@ -72,7 +63,7 @@ class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor wit
 
     case StartCalculateLinearCombinationCommand(passwords) => {
       val searchSpace: Seq[String] = (0L to Long.MaxValue).map(_.toBinaryString)
-      val workPackages = splitLongRange()
+      val workPackages = splitWork(searchSpace)
       var a = 0
       workers
         .zip(workPackages)
@@ -95,14 +86,7 @@ class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor wit
       log.warning(s"$name: Received unknown message: $m")
   }
 
-  def splitRange(range: Range): Seq[Range] = {
-    val remainder = range.end % nWorkers != 0
-    val partitionSize = (if(remainder) 1 else 0) + (range.end / nWorkers)
-
-    (0 until nWorkers).map(workerIndex => range.slice(workerIndex*partitionSize, (workerIndex+1)*partitionSize))
-  }
-
-  def distributeWork(workPackages: Seq[Range], secrets: Map[Int, String]): Unit = {
+  def distributeWork(workPackages: Seq[Seq[Int]], secrets: Map[Int, String]): Unit = {
     workers.zip(workPackages).foreach{ case (ref, packages) =>
       ref ! CrackPasswordsCommand(secrets, packages)
     }
