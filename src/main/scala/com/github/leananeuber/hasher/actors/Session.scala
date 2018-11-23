@@ -4,7 +4,7 @@ import java.io.File
 
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
 import com.github.leananeuber.hasher.actors.gene_partners.MatchGenePartnerMaster
-import com.github.leananeuber.hasher.actors.gene_partners.MatchGenePartnerMaster.{MatchedGenes, StartMatchingGenes}
+import com.github.leananeuber.hasher.actors.gene_partners.MatchGenePartnerProtocol.{MatchedGenes, StartMatchingGenes}
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingMaster
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol.{PasswordsCrackedEvent, StartCrackingCommand}
 import com.github.leananeuber.hasher.parsing.{StudentRecord, StudentsCSVParser}

@@ -3,6 +3,7 @@ package com.github.leananeuber.hasher.actors.gene_partners
 import akka.actor.{Actor, ActorLogging, Props}
 import com.github.leananeuber.hasher.actors.Reaper
 import com.github.leananeuber.hasher.actors.gene_partners.MatchGenePartnerProtocol.{CalculateLCSLengths, LCSLengthsCalculated}
+import com.github.leananeuber.hasher.actors.gene_partners.MatchGenePartnerWorker.PotPartnerMap
 import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.WorkerHandling
 
 import scala.collection.mutable
@@ -12,6 +13,10 @@ object MatchGenePartnerWorker {
 
   def props: Props = Props[MatchGenePartnerWorker]
 
+  /** Maps an ID (student) to a partner -> LCS-length tuple, where LCS stands for
+    * longest common substring
+    */
+  type PotPartnerMap = Map[Int, (Int, Int)]
 }
 
 
@@ -34,12 +39,9 @@ class MatchGenePartnerWorker extends Actor with ActorLogging with WorkerHandling
       sender ! LCSLengthsCalculated(lengths)
   }
 
-  private def createLengthMapPart(genes: Map[Int, String], indices: Seq[(Int, Int)]): Map[Int, (Int, Int)] = {
-    type I = Int
-    type J = Int
-    type LEN = Int
-    val lengths: Map[I, mutable.Buffer[(J, LEN)]] = genes.keys
-      .map( key => key -> mutable.Buffer.empty[(J, LEN)] )
+  private def createLengthMapPart(genes: Map[Int, String], indices: Seq[(Int, Int)]): PotPartnerMap = {
+    val lengths: Map[Int, mutable.Buffer[(Int, Int)]] = genes.keys
+      .map( key => key -> mutable.Buffer.empty[(Int, Int)] )
       .toMap
 
     indices.foreach{ case (i, j) =>
