@@ -2,7 +2,7 @@ package com.github.leananeuber.hasher.actors.hash_mining
 
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
 import com.github.leananeuber.hasher.actors.Reaper
-import com.github.leananeuber.hasher.actors.gene_partners.MatchGenePartnerProtocol.{CalculateLCSLengths, LCSLengthsCalculated, MatchedGenes, StartMatchingGenes}
+import com.github.leananeuber.hasher.actors.hash_mining.HashMiningProtocol.{EncryptCommand, EncryptedEvent, HashesMinedEvent, MineHashesFor}
 import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.MasterHandling
 
 import scala.collection.mutable
@@ -11,6 +11,8 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object HashMiningMaster {
+
+  val prefixLength = 5
 
   val name = "mgp-master"
 
@@ -22,8 +24,7 @@ class HashMiningMaster(nWorkers: Int, session: ActorRef) extends Actor with Acto
 
   val name: String = self.path.name
 
-  val receivedResponses: mutable.Map[ActorRef, Map[Int, (Int, Int)]] = mutable.Map.empty
-  var n: Int = _
+  val receivedResponses: mutable.Map[ActorRef, Map[Int, String]] = mutable.Map.empty
 
   override def preStart(): Unit = {
     log.info(s"Starting $name")
@@ -37,33 +38,26 @@ class HashMiningMaster(nWorkers: Int, session: ActorRef) extends Actor with Acto
 
   override def receive: Receive = handleWorkerRegistrations orElse {
 
-    case StartMatchingGenes(genes) =>
+    case MineHashesFor(content) =>
       if(workers.size < nWorkers) {
         // delay processing of message until all workers are ready
-        context.system.scheduler.scheduleOnce(1 second, self, StartMatchingGenes(genes))
+        context.system.scheduler.scheduleOnce(1 second, self, MineHashesFor(content))
 
       } else {
-        // generate index combinations
-        n = genes.keys.max
-        val combinations = (1 to n).flatMap(i => (i+1 to n).map(j => i -> j))
-        val ranges = splitWork(combinations)
-
-        workers.zip(ranges).foreach { case (ref, indexRange) =>
-          ref ! CalculateLCSLengths(genes, indexRange)
+        // distribute work
+        val workPackages = splitWork(content.toSeq).map(_.toMap)
+        workers.zip(workPackages).foreach { case (ref, work) =>
+          ref ! EncryptCommand(work, HashMiningMaster.prefixLength)
         }
       }
 
-    case LCSLengthsCalculated(lengths) =>
-      log.info(s"$name: received ${lengths.size} lenghts from $sender")
-      receivedResponses(sender) = lengths
+    case EncryptedEvent(hashes) =>
+      log.info(s"$name: received ${hashes.size} hashes from $sender")
+      receivedResponses(sender) = hashes
 
       if(receivedResponses.size == workers.size) {
-        val genePartners = (for{
-          id <- 1 to n
-          potPartners = receivedResponses.values.flatMap(_.get(id))
-          if potPartners.nonEmpty
-        } yield id -> potPartners.maxBy(_._2)._1).toMap
-        session ! MatchedGenes(genePartners)
+        val allHashes = receivedResponses.values.reduce(_ ++ _)
+        session ! HashesMinedEvent(allHashes)
       }
   }
 }
