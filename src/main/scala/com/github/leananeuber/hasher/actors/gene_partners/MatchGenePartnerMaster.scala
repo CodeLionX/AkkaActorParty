@@ -2,8 +2,7 @@ package com.github.leananeuber.hasher.actors.gene_partners
 
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
 import com.github.leananeuber.hasher.actors.Reaper
-import com.github.leananeuber.hasher.actors.gene_partners.MatchGenePartnerMaster.{MatchedGenes, StartMatchingGenes}
-import com.github.leananeuber.hasher.actors.gene_partners.MatchGenePartnerWorker.{CalculateLCSLengths, LCSLengthsCalculated}
+import com.github.leananeuber.hasher.actors.gene_partners.MatchGenePartnerProtocol.{CalculateLCSLengths, LCSLengthsCalculated, MatchedGenes, StartMatchingGenes}
 import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.MasterHandling
 
 import scala.collection.mutable
@@ -17,10 +16,6 @@ object MatchGenePartnerMaster {
   val name = "mgp-master"
 
   def props(nWorkers: Int, session: ActorRef): Props = Props(new MatchGenePartnerMaster(nWorkers, session))
-
-  case class StartMatchingGenes(genes: Map[Int, String])
-
-  case class MatchedGenes(genePartners: Map[Int, Int])
 
 }
 

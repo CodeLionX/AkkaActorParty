@@ -2,6 +2,7 @@ package com.github.leananeuber.hasher.actors.gene_partners
 
 import akka.actor.{Actor, ActorLogging, Props}
 import com.github.leananeuber.hasher.actors.Reaper
+import com.github.leananeuber.hasher.actors.gene_partners.MatchGenePartnerProtocol.{CalculateLCSLengths, LCSLengthsCalculated}
 import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.WorkerHandling
 
 import scala.collection.mutable
@@ -11,15 +12,10 @@ object MatchGenePartnerWorker {
 
   def props: Props = Props[MatchGenePartnerWorker]
 
-  case class CalculateLCSLengths(genes: Map[Int, String], indices: Seq[(Int, Int)])
-
-  case class LCSLengthsCalculated(lengths: Map[Int, (Int, Int)])
-
 }
 
 
 class MatchGenePartnerWorker extends Actor with ActorLogging with WorkerHandling {
-  import MatchGenePartnerWorker._
 
   val name: String = self.path.name
 
