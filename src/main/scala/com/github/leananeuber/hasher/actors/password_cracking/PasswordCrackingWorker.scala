@@ -31,17 +31,13 @@ class PasswordCrackingWorker extends Actor with ActorLogging with WorkerHandling
   override def receive: Receive = super.handleMasterCommunicationTo(PasswordCrackingMaster.name) orElse {
 
     case CrackPasswordsCommand(secrets, range) =>
-      log.info(s"$name: checking passwords in range $range")
+      log.info(s"checking passwords in range ${range.headOption} to ${range.lastOption}")
       sender() ! PasswordsCrackedEvent(decrypt(secrets, range))
 
-    // catch-all case: just log
-    case m =>
-      log.warning(s"$name: Received unknown message: $m")
   }
 
   def decrypt(secrets: Map[Int, String], range: Seq[Int]): Map[Int, Int] = {
     val rainbow = HashUtil.generateRainbow(range)
-    log.info("Successfully generated rainbow table! Yay!")
     for {
       idHashTuple <- secrets
       realValue <- HashUtil.unhash(idHashTuple._2, rainbow)

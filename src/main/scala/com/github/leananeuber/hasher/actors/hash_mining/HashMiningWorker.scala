@@ -30,6 +30,7 @@ class HashMiningWorker extends Actor with ActorLogging with WorkerHandling {
 
   override def receive: Receive = super.handleMasterCommunicationTo(HashMiningMaster.name) orElse {
     case EncryptCommand(content, prefixLength) =>
+      log.info(s"hashing ${content.size} partners with prefix length $prefixLength")
       val prefixMap = Map(-1 -> "0" * prefixLength, 1 -> "1" * prefixLength)
 
       val hashes = content.map{ case (id, (partner, prefix)) =>

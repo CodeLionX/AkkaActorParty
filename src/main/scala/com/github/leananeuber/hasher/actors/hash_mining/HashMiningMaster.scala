@@ -52,12 +52,16 @@ class HashMiningMaster(nWorkers: Int, session: ActorRef) extends Actor with Acto
       }
 
     case EncryptedEvent(hashes) =>
-      log.info(s"$name: received ${hashes.size} hashes from $sender")
+      log.info(s"received ${hashes.size} hashes from $sender")
       receivedResponses(sender) = hashes
 
       if(receivedResponses.size == workers.size) {
         val allHashes = receivedResponses.values.reduce(_ ++ _)
         session ! HashesMinedEvent(allHashes)
       }
+
+    // catch-all case: just log
+    case m =>
+      log.warning(s"received unknown message: $m")
   }
 }
