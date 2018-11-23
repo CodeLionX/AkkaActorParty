@@ -18,7 +18,7 @@ class HashMiningWorker extends Actor with ActorLogging with WorkerHandling {
 
   val name: String = self.path.name
 
-  val rand: Random = Random(926)
+  val rand: Random = new Random(926)
 
   override def preStart(): Unit = {
     log.info(s"Starting $name")

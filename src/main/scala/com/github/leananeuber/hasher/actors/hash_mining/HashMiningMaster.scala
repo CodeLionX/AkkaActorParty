@@ -14,7 +14,7 @@ object HashMiningMaster {
 
   val prefixLength = 5
 
-  val name = "mgp-master"
+  val name = "hm-master"
 
   def props(nWorkers: Int, session: ActorRef): Props = Props(new HashMiningMaster(nWorkers, session))
 
