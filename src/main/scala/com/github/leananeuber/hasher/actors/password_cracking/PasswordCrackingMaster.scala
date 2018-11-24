@@ -14,8 +14,6 @@ import scala.language.postfixOps
 
 object PasswordCrackingMaster {
 
-  val partitionSize = 10000
-
   val name = "pc-master"
 
   def props(nWorkers: Int, session: ActorRef): Props = Props(new PasswordCrackingMaster(nWorkers, session))
@@ -24,11 +22,11 @@ object PasswordCrackingMaster {
 
 
 class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor with ActorLogging with MasterHandling {
-  import PasswordCrackingMaster._
 
   private val settings = Settings(context.system)
 
   val passwordRange: Range = settings.passwordRangeStart to settings.passwordRangeEnd
+  val partitionSize: Int = settings.linearizationPartitionSize
   val name: String = self.path.name
   val receivedResponses: mutable.Map[ActorRef, Map[Int, Int]] = mutable.Map.empty
   var counter = 0L
@@ -62,28 +60,22 @@ class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor wit
         session ! PasswordsCrackedEvent(combinedPasswordMap)
       }
 
-    case StartCalculateLinearCombinationCommand(passwords) => {
-      workers
-        .foreach{ case (ref) =>
-          log.info(s"Index : $counter")
-          log.info(s"nPartitions: $partitionSize")
+    case StartCalculateLinearCombinationCommand(passwords) =>
+      workers.foreach( ref => {
           ref ! CalculateLinearCombinationCommand(passwords, counter)
           counter += 1
-      }
-    }
+      })
 
-    case NoCombinationFound(passwords) => {
+    case NoCombinationFound(passwords) =>
       if(counter < Long.MaxValue/partitionSize) {
         sender ! CalculateLinearCombinationCommand(passwords, counter)
         counter += 1
       }
-    }
 
-    case LinearCombinationCalculatedEvent(combination) => {
+    case LinearCombinationCalculatedEvent(combination) =>
       counter = Long.MaxValue/partitionSize
       log.info(s"$name: received passwords with prefixes from $sender")
       session ! LinearCombinationCalculatedEvent(combination)
-    }
 
     case Terminated(actorRef) =>
       workers.remove(actorRef)

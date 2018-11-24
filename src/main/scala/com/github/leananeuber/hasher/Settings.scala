@@ -8,7 +8,7 @@ class SettingsImpl(config: Config) extends Extension {
 
   private val namespace = "com.github.leananeuber.hasher"
 
-  val linearizationPartitions: Int = config.getInt(s"$namespace.linearization-partitions")
+  val linearizationPartitionSize: Int = config.getInt(s"$namespace.linearization-partition-size")
 
   val prefixLength: Int = config.getInt(s"$namespace.prefix-length")
 

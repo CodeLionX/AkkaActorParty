@@ -1,6 +1,7 @@
 package com.github.leananeuber.hasher.actors.hash_mining
 
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
+import com.github.leananeuber.hasher.Settings
 import com.github.leananeuber.hasher.actors.Reaper
 import com.github.leananeuber.hasher.actors.hash_mining.HashMiningProtocol.{EncryptCommand, EncryptedEvent, HashesMinedEvent, MineHashesFor}
 import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.MasterHandling
@@ -12,8 +13,6 @@ import scala.language.postfixOps
 
 object HashMiningMaster {
 
-  val prefixLength = 5
-
   val name = "hm-master"
 
   def props(nWorkers: Int, session: ActorRef): Props = Props(new HashMiningMaster(nWorkers, session))
@@ -21,6 +20,8 @@ object HashMiningMaster {
 }
 
 class HashMiningMaster(nWorkers: Int, session: ActorRef) extends Actor with ActorLogging with MasterHandling {
+
+  val prefixLength = Settings(context.system).prefixLength
 
   val name: String = self.path.name
 
@@ -47,7 +48,7 @@ class HashMiningMaster(nWorkers: Int, session: ActorRef) extends Actor with Acto
         // distribute work
         val workPackages = splitWork(content.toSeq).map(_.toMap)
         workers.zip(workPackages).foreach { case (ref, work) =>
-          ref ! EncryptCommand(work, HashMiningMaster.prefixLength)
+          ref ! EncryptCommand(work, prefixLength)
         }
       }
 

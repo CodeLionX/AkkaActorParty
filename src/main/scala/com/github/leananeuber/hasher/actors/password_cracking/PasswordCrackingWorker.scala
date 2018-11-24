@@ -1,7 +1,7 @@
 package com.github.leananeuber.hasher.actors.password_cracking
 
 import akka.actor.{Actor, ActorLogging, Props}
-import com.github.leananeuber.hasher.HashUtil
+import com.github.leananeuber.hasher.{HashUtil, Settings}
 import com.github.leananeuber.hasher.actors.Reaper
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol._
 import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.WorkerHandling
@@ -21,6 +21,8 @@ object PasswordCrackingWorker {
 
 class PasswordCrackingWorker extends Actor with ActorLogging with WorkerHandling {
 
+  val partitionSize: Int = Settings(context.system).linearizationPartitionSize
+
   val name: String = self.path.name
 
   override def preStart(): Unit = {
@@ -38,12 +40,12 @@ class PasswordCrackingWorker extends Actor with ActorLogging with WorkerHandling
       sender() ! PasswordsCrackedEvent(decrypt(secrets, range))
 
     case CalculateLinearCombinationCommand(passwords, index) =>
-      var result = solve(passwords.values.toBuffer, index)
-      result match {
+      solve(passwords.values.toBuffer, index) match {
         case Some(prefixes) =>
           val resultmap = passwords.keys.zip(prefixes).toMap
           sender ! LinearCombinationCalculatedEvent(resultmap)
-        case None => sender ! NoCombinationFound(passwords)
+        case None =>
+          sender ! NoCombinationFound(passwords)
       }
 
     // catch-all case: just log
@@ -61,9 +63,9 @@ class PasswordCrackingWorker extends Actor with ActorLogging with WorkerHandling
   }
 
   def solve(numbers: mutable.Buffer[Int], index: Long): Option[mutable.Buffer[Int]] = {
-    var windowSize = PasswordCrackingMaster.partitionSize
+    val windowSize = partitionSize
     var a = index*windowSize
-    var e = if(index == Long.MaxValue/PasswordCrackingMaster.partitionSize) Long.MaxValue - 1 else (index+1)*windowSize -1
+    val e = if(index == Long.MaxValue/partitionSize) Long.MaxValue - 1 else (index+1)*windowSize -1
     //log.info(s"Start worker $index: $a")
     //log.info(s"End worker $index: $e")
     while(a < e){
@@ -85,7 +87,7 @@ class PasswordCrackingWorker extends Actor with ActorLogging with WorkerHandling
 
   def sum(numbers: mutable.Buffer[Int], prefixes: mutable.Buffer[Int]): Int = numbers
     .zip(prefixes)
-    .map{case(p,n) => p*n}
+    .map{ case(p,n) => p * n }
     .sum
 
 }
