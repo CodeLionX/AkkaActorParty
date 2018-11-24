@@ -1,6 +1,6 @@
 package com.github.leananeuber.hasher.parsing
 
-import java.io.File
+import java.io.{File, PrintStream}
 
 import com.univocity.parsers.common.record.Record
 import com.univocity.parsers.csv._
@@ -30,11 +30,12 @@ object StudentsCSVParser {
     new CsvParser(settings)
   }
 
-  private def stringWriter = {
+  private def stringWriter(out: PrintStream) = {
     val settings = new CsvWriterSettings
     settings.setFormat(defaultFormat)
     settings.setHeaderWritingEnabled(withHeader)
-    new CsvWriter(settings)
+    settings.setHeaders("ID", "Name", "Password", "Prefix", "Partner", "Hash")
+    new CsvWriter(out, settings)
   }
 
   private def parseRecord(record: Record): StudentRecord =
@@ -51,4 +52,12 @@ object StudentsCSVParser {
         .map( record => record.id -> record )
         .toMap
 
+  def buildResultCsvString(result: Seq[ResultRecord], printWriter: PrintStream): Unit = {
+    val writer = stringWriter(printWriter)
+    writer.writeHeaders()
+    result.foreach( result =>
+      writer.writeRow(Array(result.id.toString, result.name, result.password.toString, result.prefix.toString, result.partnerId.toString, result.hash))
+    )
+    writer.flush()
+  }
 }
