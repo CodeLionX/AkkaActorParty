@@ -1,9 +1,7 @@
 package com.github.leananeuber.hasher.actors.password_cracking
 
-import java.nio.charset.StandardCharsets
-import java.security.MessageDigest
-
 import akka.actor.{Actor, ActorLogging, Props}
+import com.github.leananeuber.hasher.HashUtil
 import com.github.leananeuber.hasher.actors.Reaper
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol._
 import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.WorkerHandling
@@ -36,7 +34,7 @@ class PasswordCrackingWorker extends Actor with ActorLogging with WorkerHandling
   override def receive: Receive = super.handleMasterCommunicationTo(PasswordCrackingMaster.name) orElse {
 
     case CrackPasswordsCommand(secrets, range) =>
-      log.info(s"$name: checking passwords in range $range")
+      log.info(s"checking passwords in range ${range.headOption} to ${range.lastOption}")
       sender() ! PasswordsCrackedEvent(decrypt(secrets, range))
 
     case CalculateLinearCombinationCommand(passwords, index) =>
@@ -51,30 +49,15 @@ class PasswordCrackingWorker extends Actor with ActorLogging with WorkerHandling
     // catch-all case: just log
     case m =>
       log.warning(s"$name: Received unknown message: $m")
+
   }
 
   def decrypt(secrets: Map[Int, String], range: Seq[Int]): Map[Int, Int] = {
-    val rainbow = generateRainbow(range)
-    log.info("Successfully generated rainbow table! Yay!")
+    val rainbow = HashUtil.generateRainbow(range)
     for {
       idHashTuple <- secrets
-      realValue <- unhash(idHashTuple._2, rainbow)
+      realValue <- HashUtil.unhash(idHashTuple._2, rainbow)
     } yield idHashTuple._1 -> realValue
-  }
-
-  private def unhash(hexHash: String, rainbow: Map[String, Int]): Option[Int] = rainbow.get(hexHash)
-
-  private def generateRainbow(range: Seq[Int]): Map[String, Int] = {
-    range.map(x => hash(x) -> x).toMap
-  }
-
-  private def hash(number: Int) = {
-    val digest = MessageDigest.getInstance("SHA-256")
-    val hashedBytes = digest.digest(String.valueOf(number).getBytes(StandardCharsets.UTF_8))
-
-    hashedBytes.map( byte =>
-      ((byte & 0xff) + 0x100).toHexString.substring(1)
-    ).mkString("")
   }
 
   def solve(numbers: mutable.Buffer[Int], index: Long): Option[mutable.Buffer[Int]] = {
@@ -104,4 +87,5 @@ class PasswordCrackingWorker extends Actor with ActorLogging with WorkerHandling
     .zip(prefixes)
     .map{case(p,n) => p*n}
     .sum
+
 }

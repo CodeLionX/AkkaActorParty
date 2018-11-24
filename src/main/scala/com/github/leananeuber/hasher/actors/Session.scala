@@ -4,7 +4,9 @@ import java.io.File
 
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
 import com.github.leananeuber.hasher.actors.gene_partners.MatchGenePartnerMaster
-import com.github.leananeuber.hasher.actors.gene_partners.MatchGenePartnerMaster.{MatchedGenes, StartMatchingGenes}
+import com.github.leananeuber.hasher.actors.gene_partners.MatchGenePartnerProtocol.{MatchedGenes, StartMatchingGenes}
+import com.github.leananeuber.hasher.actors.hash_mining.HashMiningMaster
+import com.github.leananeuber.hasher.actors.hash_mining.HashMiningProtocol.{HashesMinedEvent, MineHashesFor}
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingMaster
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol.{PasswordsCrackedEvent, StartCrackingCommand, _}
 import com.github.leananeuber.hasher.parsing.{StudentRecord, StudentsCSVParser}
@@ -45,9 +47,9 @@ class Session(nSlaves: Int, inputFile: File) extends Actor with ActorLogging {
 
       else {
         val overallWorkers = newSlaveRegistry.values.sum
-        log.debug(s"Starting masters with $overallWorkers workers")
         val pcMaster = context.actorOf(PasswordCrackingMaster.props(overallWorkers, self), PasswordCrackingMaster.name)
         val mgpMaster = context.actorOf(MatchGenePartnerMaster.props(overallWorkers, self), MatchGenePartnerMaster.name)
+        val hmMaster = context.actorOf(HashMiningMaster.props(overallWorkers, self), HashMiningMaster.name)
 
         // read `input`
         val pws: Map[Int, String] = records.map{ case (id, record) =>
@@ -56,20 +58,20 @@ class Session(nSlaves: Int, inputFile: File) extends Actor with ActorLogging {
 
         // start processing
         pcMaster ! StartCrackingCommand(pws)
-        context.become(runningPasswordCracking(newSlaveRegistry, pcMaster, mgpMaster))
+        context.become(runningPasswordCracking(newSlaveRegistry, pcMaster, mgpMaster, hmMaster))
       }
   }
 
-  def runningPasswordCracking(slaveRegistry: Map[ActorRef, Int], pcMaster: ActorRef, mgpMaster: ActorRef): Receive = {
+  def runningPasswordCracking(slaveRegistry: Map[ActorRef, Int], pcMaster: ActorRef, mgpMaster: ActorRef, hmMaster: ActorRef): Receive = {
 
     case PasswordsCrackedEvent(cleartexts) =>
       log.info(s"session received cleartexts:\n$cleartexts")
 
       pcMaster ! StartCalculateLinearCombinationCommand(cleartexts)
-      context.become(runningLinearCombination(slaveRegistry, pcMaster, mgpMaster))
+      context.become(runningLinearCombination(slaveRegistry, pcMaster, mgpMaster, hmMaster))
   }
 
-  def runningLinearCombination(slaveRegistry: Map[ActorRef, Int], pcMaster: ActorRef, mgpMaster: ActorRef): Receive = {
+  def runningLinearCombination(slaveRegistry: Map[ActorRef, Int], pcMaster: ActorRef, mgpMaster: ActorRef, hmMaster: ActorRef): Receive = {
 
     case LinearCombinationCalculatedEvent(combinations) =>
       log.info(s"session received combinations:\n$combinations")
@@ -78,15 +80,28 @@ class Session(nSlaves: Int, inputFile: File) extends Actor with ActorLogging {
         id -> record.geneSeq
       }
       mgpMaster ! StartMatchingGenes(genes)
-      context.become(runningGeneMatching(slaveRegistry, pcMaster, mgpMaster))
+      context.become(runningGeneMatching(slaveRegistry, pcMaster, mgpMaster, hmMaster))
   }
 
-  def runningGeneMatching(slaveRegistry: Map[ActorRef, Int], pcMaster: ActorRef, mgpMaster: ActorRef): Receive = {
+  def runningGeneMatching(slaveRegistry: Map[ActorRef, Int], pcMaster: ActorRef, mgpMaster: ActorRef, hmMaster: ActorRef): Receive = {
 
     case MatchedGenes(genePartners) =>
-      log.info(s"session received gene partners:\n$genePartners")
-      shutdown(Seq(pcMaster, mgpMaster) ++ slaveRegistry.keys)
+      log.info(s"session received gene partners")
 
+      // cheat prefixes:
+      val prefixes = Seq(1,-1,-1,1,1,1,-1,1,-1,-1,-1,-1,-1,-1,1,1,-1,-1,1,1,-1,-1,1,-1,-1,-1,-1,-1,-1,1,1,1,1,1,1,1,1,1,1,1,1,1)
+      val miningContent = genePartners.map{ case (id, partner) =>
+        id -> (partner, prefixes(id-1))
+      }
+      hmMaster ! MineHashesFor(miningContent)
+      context.become(runningHashMining(slaveRegistry, pcMaster, mgpMaster, hmMaster))
+  }
+
+  def runningHashMining(slaveRegistry: Map[ActorRef, Int], pcMaster: ActorRef, mgpMaster: ActorRef, hmMaster: ActorRef): Receive = {
+    case HashesMinedEvent(hashes) =>
+      log.info(s"session received hashes")
+
+      shutdown(Seq(pcMaster, mgpMaster, hmMaster) ++ slaveRegistry.keys)
   }
 
   def shutdown(actors: Seq[ActorRef]): Unit = {

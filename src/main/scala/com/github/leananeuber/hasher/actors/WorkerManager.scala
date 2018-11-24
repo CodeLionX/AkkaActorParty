@@ -3,6 +3,7 @@ package com.github.leananeuber.hasher.actors
 import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, OneForOneStrategy, Props, SupervisorStrategy}
 import com.github.leananeuber.hasher.actors.gene_partners.{MatchGenePartnerMaster, MatchGenePartnerWorker}
+import com.github.leananeuber.hasher.actors.hash_mining.HashMiningWorker
 import com.github.leananeuber.hasher.actors.password_cracking.{PasswordCrackingMaster, PasswordCrackingWorker}
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingWorker.CrackingFailedException
 import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.SetupConnectionTo
@@ -31,6 +32,11 @@ class WorkerManager(nWorkers: Int) extends Actor with ActorLogging {
   }
   val mgp_worker: Seq[ActorRef] = (0 until nWorkers).map{ id =>
     val worker = context.actorOf(MatchGenePartnerWorker.props, s"mgp-worker-$id")
+    context.watch(worker)
+    worker
+  }
+  val hm_workers: Seq[ActorRef] = (0 until nWorkers).map{ id =>
+    val worker = context.actorOf(HashMiningWorker.props, s"hm-worker-$id")
     context.watch(worker)
     worker
   }
