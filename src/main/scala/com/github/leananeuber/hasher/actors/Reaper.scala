@@ -17,6 +17,7 @@ object Reaper {
     reaper ! WatchMe(actor)
   }
 
+  // should only be send within actor systems
   case class WatchMe(ref: ActorRef)
 
 }
