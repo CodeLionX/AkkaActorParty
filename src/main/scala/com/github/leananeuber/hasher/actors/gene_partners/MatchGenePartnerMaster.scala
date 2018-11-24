@@ -56,7 +56,7 @@ class MatchGenePartnerMaster(nWorkers: Int, session: ActorRef) extends Actor wit
       }
 
     case LCSLengthsCalculated(lengths) =>
-      log.info(s"$name: received ${lengths.size} lenghts from $sender")
+      log.info(s"received ${lengths.size} lenghts from $sender")
       receivedResponses(sender) = lengths
 
       if(receivedResponses.size == workers.size) {
@@ -67,5 +67,9 @@ class MatchGenePartnerMaster(nWorkers: Int, session: ActorRef) extends Actor wit
         } yield id -> potPartners.maxBy(_._2)._1).toMap
         session ! MatchedGenes(genePartners)
       }
+
+    // catch-all case: just log
+    case m =>
+      log.warning(s"received unknown message: $m")
   }
 }

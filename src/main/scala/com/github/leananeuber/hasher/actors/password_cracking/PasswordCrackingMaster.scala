@@ -46,15 +46,11 @@ class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor wit
 
       } else {
         val workPackages = splitWork(passwordRange)
-        log.info(
-          s"""$name: received command message
-             |  available workers: ${workers.size}
-             |  work packages:     ${workPackages.size}""".stripMargin)
         distributeWork(workPackages, secrets)
       }
 
     case PasswordsCrackedEvent(passwords) =>
-      log.info(s"$name: received ${passwords.size} passwords from $sender")
+      log.info(s"received ${passwords.size} passwords from $sender")
       receivedResponses(sender) = passwords
       if(receivedResponses.size == workers.size) {
         val combinedPasswordMap = receivedResponses.values.reduce( _ ++ _)
@@ -63,7 +59,7 @@ class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor wit
 
     // catch-all case: just log
     case m =>
-      log.warning(s"$name: Received unknown message: $m")
+      log.warning(s"received unknown message: $m")
   }
 
   def distributeWork(workPackages: Seq[Seq[Int]], secrets: Map[Int, String]): Unit = {
