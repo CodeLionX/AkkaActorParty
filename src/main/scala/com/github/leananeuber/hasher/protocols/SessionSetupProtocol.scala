@@ -10,4 +10,6 @@ object SessionSetupProtocol {
 
   case object RegisteredAtSessionAck extends SerializableMessage
 
+  case object MasterReady extends SerializableMessage
+
 }

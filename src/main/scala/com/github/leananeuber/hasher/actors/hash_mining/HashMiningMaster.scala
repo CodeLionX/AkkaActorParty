@@ -1,10 +1,10 @@
 package com.github.leananeuber.hasher.actors.hash_mining
 
-import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
+import akka.actor.{ActorRef, PoisonPill, Props}
 import com.github.leananeuber.hasher.Settings
 import com.github.leananeuber.hasher.actors.Reaper
 import com.github.leananeuber.hasher.actors.hash_mining.HashMiningProtocol.{EncryptCommand, EncryptedEvent, HashesMinedEvent, MineHashesFor}
-import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.MasterHandling
+import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.{MasterActor, MasterHandling}
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -19,11 +19,9 @@ object HashMiningMaster {
 
 }
 
-class HashMiningMaster(nWorkers: Int, session: ActorRef) extends Actor with ActorLogging with MasterHandling {
+class HashMiningMaster(val nWorkers: Int, val session: ActorRef) extends MasterActor with MasterHandling {
 
-  val prefixLength = Settings(context.system).prefixLength
-
-  val name: String = self.path.name
+  val prefixLength: Int = Settings(context.system).prefixLength
 
   val receivedResponses: mutable.Map[ActorRef, Map[Int, String]] = mutable.Map.empty
 

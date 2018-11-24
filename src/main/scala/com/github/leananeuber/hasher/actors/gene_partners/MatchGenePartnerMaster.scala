@@ -3,7 +3,7 @@ package com.github.leananeuber.hasher.actors.gene_partners
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
 import com.github.leananeuber.hasher.actors.Reaper
 import com.github.leananeuber.hasher.actors.gene_partners.MatchGenePartnerProtocol.{CalculateLCSLengths, LCSLengthsCalculated, MatchedGenes, StartMatchingGenes}
-import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.MasterHandling
+import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.{MasterActor, MasterHandling}
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -20,9 +20,7 @@ object MatchGenePartnerMaster {
 }
 
 
-class MatchGenePartnerMaster(nWorkers: Int, session: ActorRef) extends Actor with ActorLogging with MasterHandling {
-
-  val name: String = self.path.name
+class MatchGenePartnerMaster(val nWorkers: Int, val session: ActorRef) extends MasterActor with MasterHandling {
 
   val receivedResponses: mutable.Map[ActorRef, Map[Int, (Int, Int)]] = mutable.Map.empty
   var n: Int = _

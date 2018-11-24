@@ -2,6 +2,7 @@ package com.github.leananeuber.hasher.protocols
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Address, Cancellable, Terminated}
 import com.github.leananeuber.hasher.actors.Session
+import com.github.leananeuber.hasher.protocols.SessionSetupProtocol.MasterReady
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -16,7 +17,13 @@ object MasterWorkerProtocol {
   case class SetupConnectionTo(address: Address) extends SerializableMessage
 
 
-  trait MasterHandling { this: Actor with ActorLogging =>
+  trait MasterActor extends Actor with ActorLogging {
+    val name: String = self.path.name
+    val nWorkers: Int
+    val session: ActorRef
+  }
+
+  trait MasterHandling { this: MasterActor =>
 
     val workers: mutable.Set[ActorRef] = mutable.Set.empty
 
@@ -26,6 +33,11 @@ object MasterWorkerProtocol {
         context.watch(sender)
         sender ! RegisterWorkerAck
         log.info(s"worker $sender registered")
+
+        if(workers.size == nWorkers) {
+          session ! MasterReady
+          log.info(s"master $name knows all workers")
+        }
 
       case Terminated(actorRef) =>
         workers.remove(actorRef)

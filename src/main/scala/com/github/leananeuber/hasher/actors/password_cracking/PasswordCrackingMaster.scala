@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, Terminated}
 import com.github.leananeuber.hasher.Settings
 import com.github.leananeuber.hasher.actors.Reaper
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol._
-import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.MasterHandling
+import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.{MasterActor, MasterHandling}
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -21,15 +21,15 @@ object PasswordCrackingMaster {
 }
 
 
-class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor with ActorLogging with MasterHandling {
+class PasswordCrackingMaster(val nWorkers: Int, val session: ActorRef) extends MasterActor with MasterHandling {
 
   private val settings = Settings(context.system)
 
   val passwordRange: Range = settings.passwordRangeStart to settings.passwordRangeEnd
   val partitionSize: Int = settings.linearizationPartitionSize
-  val name: String = self.path.name
+
   val receivedResponses: mutable.Map[ActorRef, Map[Int, Int]] = mutable.Map.empty
-  var counter = 0L
+  var counter: Long = 0L
 
   override def preStart(): Unit = {
     log.info(s"Starting $name")
