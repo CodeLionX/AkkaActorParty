@@ -10,7 +10,7 @@ class SettingsImpl(config: Config) extends Extension {
 
   val linearizationPartitions: Int = config.getInt(s"$namespace.linearization-partitions")
 
-  val prefixLength: Int = config.getInt(s"$namespace.perfix-length")
+  val prefixLength: Int = config.getInt(s"$namespace.prefix-length")
 
   val passwordRangeStart: Int = config.getInt(s"$namespace.password-range.start")
 
