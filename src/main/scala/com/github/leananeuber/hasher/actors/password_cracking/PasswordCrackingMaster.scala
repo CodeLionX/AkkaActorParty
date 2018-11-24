@@ -74,12 +74,8 @@ class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor wit
 
     case LinearCombinationCalculatedEvent(combination) =>
       counter = Long.MaxValue/partitionSize
-      log.info(s"$name: received passwords with prefixes from $sender")
+      log.info(s"received prefixes from $sender")
       session ! LinearCombinationCalculatedEvent(combination)
-
-    case Terminated(actorRef) =>
-      workers.remove(actorRef)
-      log.warning(s"$name: worker $actorRef terminated - was it on purpose?")
 
     // catch-all case: just log
     case m =>

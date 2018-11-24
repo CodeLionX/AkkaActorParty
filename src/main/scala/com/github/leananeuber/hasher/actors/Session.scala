@@ -9,7 +9,7 @@ import com.github.leananeuber.hasher.actors.hash_mining.HashMiningMaster
 import com.github.leananeuber.hasher.actors.hash_mining.HashMiningProtocol.{HashesMinedEvent, MineHashesFor}
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingMaster
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol.{PasswordsCrackedEvent, StartCrackingCommand, _}
-import com.github.leananeuber.hasher.parsing.{StudentRecord, StudentsCSVParser}
+import com.github.leananeuber.hasher.parsing.{ResultRecord, StudentRecord, StudentsCSVParser}
 import com.github.leananeuber.hasher.protocols.SessionSetupProtocol.{RegisterAtSession, RegisteredAtSessionAck}
 
 
@@ -26,6 +26,12 @@ class Session(nSlaves: Int, inputFile: File) extends Actor with ActorLogging {
   import Session._
 
   val records: Map[Int, StudentRecord] = StudentsCSVParser.readStudentCsvFile(inputFile)
+  val genes: Map[Int, String] = records.map{ case (id, record) =>
+    id -> record.geneSeq
+  }
+  val pws: Map[Int, String] = records.map{ case (id, record) =>
+    id -> record.passwordHash
+  }
 
   override def preStart(): Unit = {
     log.info(s"Starting $sessionName")
@@ -51,55 +57,71 @@ class Session(nSlaves: Int, inputFile: File) extends Actor with ActorLogging {
         val mgpMaster = context.actorOf(MatchGenePartnerMaster.props(overallWorkers, self), MatchGenePartnerMaster.name)
         val hmMaster = context.actorOf(HashMiningMaster.props(overallWorkers, self), HashMiningMaster.name)
 
-        // read `input`
-        val pws: Map[Int, String] = records.map{ case (id, record) =>
-          id -> record.passwordHash
-        }
-
         // start processing
         pcMaster ! StartCrackingCommand(pws)
-        context.become(runningPasswordCracking(newSlaveRegistry, pcMaster, mgpMaster, hmMaster))
+
+        // prepare output and go to next state
+        val result = records.map{ case (id, record) => id -> record.extractToResult }
+        context.become(runningPasswordCracking(newSlaveRegistry, pcMaster, mgpMaster, hmMaster, result))
       }
   }
 
-  def runningPasswordCracking(slaveRegistry: Map[ActorRef, Int], pcMaster: ActorRef, mgpMaster: ActorRef, hmMaster: ActorRef): Receive = {
+  def runningPasswordCracking(slaveRegistry: Map[ActorRef, Int], pcMaster: ActorRef, mgpMaster: ActorRef, hmMaster: ActorRef, result: Map[Int, ResultRecord]): Receive = {
 
     case PasswordsCrackedEvent(cleartexts) =>
-      log.info(s"session received cleartexts:\n$cleartexts")
-
       pcMaster ! StartCalculateLinearCombinationCommand(cleartexts)
-      context.become(runningLinearCombination(slaveRegistry, pcMaster, mgpMaster, hmMaster))
+
+      log.info(s"session received cleartexts")
+      val updatedResult = result.map{ case (id, record) =>
+        id -> record.copy(
+          password = cleartexts(id)
+        )
+      }
+      context.become(runningLinearCombination(slaveRegistry, pcMaster, mgpMaster, hmMaster, updatedResult))
   }
 
-  def runningLinearCombination(slaveRegistry: Map[ActorRef, Int], pcMaster: ActorRef, mgpMaster: ActorRef, hmMaster: ActorRef): Receive = {
+  def runningLinearCombination(slaveRegistry: Map[ActorRef, Int], pcMaster: ActorRef, mgpMaster: ActorRef, hmMaster: ActorRef, result: Map[Int, ResultRecord]): Receive = {
 
     case LinearCombinationCalculatedEvent(combinations) =>
-      log.info(s"session received combinations:\n$combinations")
-
-      val genes: Map[Int, String] = records.map{ case (id, record) =>
-        id -> record.geneSeq
-      }
       mgpMaster ! StartMatchingGenes(genes)
-      context.become(runningGeneMatching(slaveRegistry, pcMaster, mgpMaster, hmMaster))
+
+      log.info("session received combinations")
+      val updatedResult = result.map{ case (id, record) =>
+        id -> record.copy(
+          prefix = combinations(id)
+        )
+      }
+
+      context.become(runningGeneMatching(slaveRegistry, pcMaster, mgpMaster, hmMaster, updatedResult))
   }
 
-  def runningGeneMatching(slaveRegistry: Map[ActorRef, Int], pcMaster: ActorRef, mgpMaster: ActorRef, hmMaster: ActorRef): Receive = {
+  def runningGeneMatching(slaveRegistry: Map[ActorRef, Int], pcMaster: ActorRef, mgpMaster: ActorRef, hmMaster: ActorRef, result: Map[Int, ResultRecord]): Receive = {
 
     case MatchedGenes(genePartners) =>
-      log.info(s"session received gene partners")
-
-      // cheat prefixes:
-      val prefixes = Seq(1,-1,-1,1,1,1,-1,1,-1,-1,-1,-1,-1,-1,1,1,-1,-1,1,1,-1,-1,1,-1,-1,-1,-1,-1,-1,1,1,1,1,1,1,1,1,1,1,1,1,1)
       val miningContent = genePartners.map{ case (id, partner) =>
-        id -> (partner, prefixes(id-1))
+        id -> (partner, result(id-1).prefix)
       }
       hmMaster ! MineHashesFor(miningContent)
-      context.become(runningHashMining(slaveRegistry, pcMaster, mgpMaster, hmMaster))
+
+      log.info(s"session received gene partners")
+      val updatedResult = result.map{ case (id, record) =>
+        id -> record.copy(
+          partnerId = genePartners(id)
+        )
+      }
+
+      context.become(runningHashMining(slaveRegistry, pcMaster, mgpMaster, hmMaster, updatedResult))
   }
 
-  def runningHashMining(slaveRegistry: Map[ActorRef, Int], pcMaster: ActorRef, mgpMaster: ActorRef, hmMaster: ActorRef): Receive = {
+  def runningHashMining(slaveRegistry: Map[ActorRef, Int], pcMaster: ActorRef, mgpMaster: ActorRef, hmMaster: ActorRef, result: Map[Int, ResultRecord]): Receive = {
     case HashesMinedEvent(hashes) =>
       log.info(s"session received hashes")
+
+      val udpatedResult = result.map{ case (id, record) =>
+        record.copy(
+          hash = hashes(id)
+        )
+      }
 
       shutdown(Seq(pcMaster, mgpMaster, hmMaster) ++ slaveRegistry.keys)
   }
