@@ -100,7 +100,7 @@ class Session(nSlaves: Int, inputFile: File) extends Actor with ActorLogging {
     case PasswordsCrackedEvent(cleartexts) =>
       state.pcMaster ! StartCalculateLinearCombinationCommand(cleartexts)
       val time = System.currentTimeMillis()
-      println(s"Decryption: ${time - state.lastTime} ms")
+      println("Decryption:         %06d ms".format(time - state.lastTime))
 
       log.info(s"session received cleartexts")
       val updatedResult = state.result.map{ case (id, record) =>
@@ -115,7 +115,7 @@ class Session(nSlaves: Int, inputFile: File) extends Actor with ActorLogging {
     case LinearCombinationCalculatedEvent(combinations) =>
       state.mgpMaster ! StartMatchingGenes(genes)
       val time = System.currentTimeMillis()
-      println(s"Linear Combination: ${time - state.lastTime} ms")
+      println("Linear Combination: %06d ms".format(time - state.lastTime))
 
       log.info("session received combinations")
       val updatedResult = state.result.map{ case (id, record) =>
@@ -134,7 +134,7 @@ class Session(nSlaves: Int, inputFile: File) extends Actor with ActorLogging {
       }
       state.hmMaster ! MineHashesFor(miningContent)
       val time = System.currentTimeMillis()
-      println(s"Substring: ${time - state.lastTime} ms")
+      println("Substring:          %06d ms".format(time - state.lastTime))
 
       log.info(s"session received gene partners")
       val updatedResult = state.result.map{ case (id, record) =>
@@ -149,9 +149,10 @@ class Session(nSlaves: Int, inputFile: File) extends Actor with ActorLogging {
   def runningHashMining(state: State): Receive = {
     case HashesMinedEvent(hashes) =>
       val time = System.currentTimeMillis()
-      println(s"Encryption: ${time - state.lastTime} ms")
-      println()
-      println(s"Overall:    ${time - state.startTime} ms")
+      println("Encryption:         %06d ms".format(time - state.lastTime))
+      println("                    =========")
+      println("Overall:            %06d ms".format(time - state.startTime))
+      println("\nResult:")
       log.info(s"session received hashes")
 
       val udpatedResult = state.result.map{ case (id, record) =>

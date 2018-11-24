@@ -79,3 +79,5 @@ fabric.properties
 # KDE directory preferences
 .directory
 
+# log file
+log.txt

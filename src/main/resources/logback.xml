@@ -7,7 +7,16 @@
         </encoder>
     </appender>
 
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>log.txt </file>
+        <append>true</append>
+        <encoder>
+            <pattern>[%d{HH:mm:ss.SSS} %-5level] %60.60X{akkaSource:-local}| %msg%n</pattern>
+        </encoder>
+    </appender>
+
+
     <root level="INFO">
-        <appender-ref ref="STDOUT" />
+        <appender-ref ref="FILE" />
     </root>
 </configuration>
