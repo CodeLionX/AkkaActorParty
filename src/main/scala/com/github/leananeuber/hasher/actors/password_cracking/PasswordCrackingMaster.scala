@@ -1,6 +1,7 @@
 package com.github.leananeuber.hasher.actors.password_cracking
 
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
+import com.github.leananeuber.hasher.Settings
 import com.github.leananeuber.hasher.actors.Reaper
 import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol.{CrackPasswordsCommand, PasswordsCrackedEvent, StartCrackingCommand}
 import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.MasterHandling
@@ -13,8 +14,6 @@ import scala.language.postfixOps
 
 object PasswordCrackingMaster {
 
-  val passwordRange: Range = 0 to 1000000
-
   val name = "pc-master"
 
   def props(nWorkers: Int, session: ActorRef): Props = Props(new PasswordCrackingMaster(nWorkers, session))
@@ -23,8 +22,10 @@ object PasswordCrackingMaster {
 
 
 class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor with ActorLogging with MasterHandling {
-  import PasswordCrackingMaster._
 
+  private val settings = Settings(context.system)
+
+  val passwordRange: Range = settings.passwordRangeStart to settings.passwordRangeEnd
   val name: String = self.path.name
   val receivedResponses: mutable.Map[ActorRef, Map[Int, Int]] = mutable.Map.empty
 
