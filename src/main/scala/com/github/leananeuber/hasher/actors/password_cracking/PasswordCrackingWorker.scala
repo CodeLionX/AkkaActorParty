@@ -5,7 +5,7 @@ import java.security.MessageDigest
 
 import akka.actor.{Actor, ActorLogging, Props}
 import com.github.leananeuber.hasher.actors.Reaper
-import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol.{CalculateLinearCombinationCommand, CrackPasswordsCommand, LinearCombinationCalculatedEvent, PasswordsCrackedEvent}
+import com.github.leananeuber.hasher.actors.password_cracking.PasswordCrackingProtocol._
 import com.github.leananeuber.hasher.protocols.MasterWorkerProtocol.WorkerHandling
 
 import scala.collection.mutable
@@ -39,15 +39,14 @@ class PasswordCrackingWorker extends Actor with ActorLogging with WorkerHandling
       log.info(s"$name: checking passwords in range $range")
       sender() ! PasswordsCrackedEvent(decrypt(secrets, range))
 
-    case CalculateLinearCombinationCommand(passwords, index, nWorkers) =>
-      var result = solve(passwords.values.toBuffer, index, nWorkers)
+    case CalculateLinearCombinationCommand(passwords, index) =>
+      var result = solve(passwords.values.toBuffer, index)
       result match {
         case Some(prefixes) =>
           val resultmap = passwords.keys.zip(prefixes).toMap
           sender ! LinearCombinationCalculatedEvent(resultmap)
-        case None =>
+        case None => sender ! NoCombinationFound(passwords)
       }
-
 
     // catch-all case: just log
     case m =>
@@ -78,12 +77,12 @@ class PasswordCrackingWorker extends Actor with ActorLogging with WorkerHandling
     ).mkString("")
   }
 
-  def solve(numbers: mutable.Buffer[Int], index: Int, nWorkers: Int): Option[mutable.Buffer[Int]] = {
-    var windowSize = Long.MaxValue/nWorkers + 1
+  def solve(numbers: mutable.Buffer[Int], index: Long): Option[mutable.Buffer[Int]] = {
+    var windowSize = PasswordCrackingMaster.partitionSize
     var a = index*windowSize
-    var e = if(index == nWorkers) Long.MaxValue - 1 else (index+1)*windowSize -1
-    log.info(s"Start worker $index: $a")
-    log.info(s"End worker $index: $e")
+    var e = if(index == Long.MaxValue/PasswordCrackingMaster.partitionSize) Long.MaxValue - 1 else (index+1)*windowSize -1
+    //log.info(s"Start worker $index: $a")
+    //log.info(s"End worker $index: $e")
     while(a < e){
       val binary = a.toBinaryString
       val prefixes = mutable.ArrayBuffer.fill(64)(1)
@@ -98,7 +97,6 @@ class PasswordCrackingWorker extends Actor with ActorLogging with WorkerHandling
         return Some(prefixes)
       a+=1
     }
-    log.warning("Prefix not found!")
     None
   }
 

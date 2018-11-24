@@ -15,6 +15,8 @@ object PasswordCrackingMaster {
 
   val passwordRange: Range = 0 to 1000000
 
+  val partitionSize = 10000
+
   val name = "pc-master"
 
   def props(nWorkers: Int, session: ActorRef): Props = Props(new PasswordCrackingMaster(nWorkers, session))
@@ -27,6 +29,7 @@ class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor wit
 
   val name: String = self.path.name
   val receivedResponses: mutable.Map[ActorRef, Map[Int, Int]] = mutable.Map.empty
+  var counter = 0L
 
   override def preStart(): Unit = {
     log.info(s"Starting $name")
@@ -63,16 +66,25 @@ class PasswordCrackingMaster(nWorkers: Int, session: ActorRef) extends Actor wit
 
     case StartCalculateLinearCombinationCommand(passwords) => {
       workers
-        .zip(0 until nWorkers)
-        .foreach{ case (ref, index) =>
-        ref ! CalculateLinearCombinationCommand(passwords, index, nWorkers)
+        .foreach{ case (ref) =>
+          log.info(s"Index : $counter")
+          log.info(s"nPartitions: $partitionSize")
+          ref ! CalculateLinearCombinationCommand(passwords, counter)
+          counter += 1
+      }
+    }
+
+    case NoCombinationFound(passwords) => {
+      if(counter < Long.MaxValue/partitionSize) {
+        sender ! CalculateLinearCombinationCommand(passwords, counter)
+        counter += 1
       }
     }
 
     case LinearCombinationCalculatedEvent(combination) => {
+      counter = Long.MaxValue/partitionSize
       log.info(s"$name: received passwords with prefixes from $sender")
       session ! LinearCombinationCalculatedEvent(combination)
-
     }
 
     case Terminated(actorRef) =>
